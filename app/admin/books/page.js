@@ -49,19 +49,27 @@ export default function AdminBooksPage() {
     <main style={{ padding: 30, fontFamily: 'sans-serif' }}>
       <h1>📘 Admin – Manage Books</h1>
 
-      <form onSubmit={addBook} style={{ marginTop: 20, marginBottom: 30 }}>
-        <h3>Add Book</h3>
-        <input placeholder="ISBN" value={newBook.isbn} onChange={e=>setNewBook({...newBook,isbn:e.target.value})} required/>
-        <input placeholder="Title" value={newBook.title} onChange={e=>setNewBook({...newBook,title:e.target.value})} required/>
-        <input placeholder="Author" value={newBook.author} onChange={e=>setNewBook({...newBook,author:e.target.value})}/>
-        <input placeholder="Subject" value={newBook.subject} onChange={e=>setNewBook({...newBook,subject:e.target.value})}/>
-        <input placeholder="Year Level" value={newBook.year_level} onChange={e=>setNewBook({...newBook,year_level:e.target.value})}/>
-        <input placeholder="Price" type="number" value={newBook.price} onChange={e=>setNewBook({...newBook,price:e.target.value})}/>
-        <input placeholder="Currency" value={newBook.currency} onChange={e=>setNewBook({...newBook,currency:e.target.value})}/>
-        <input placeholder="Supplier" value={newBook.supplier} onChange={e=>setNewBook({...newBook,supplier:e.target.value})}/>
-        <input placeholder="Stock" type="number" value={newBook.stock} onChange={e=>setNewBook({...newBook,stock:e.target.value})}/>
-        <button type="submit" style={{ marginLeft: 10 }}>➕ Add</button>
-      </form>
+      <form 
+  onSubmit={addBook} 
+  style={{ 
+    marginTop: 20, 
+    marginBottom: 30, 
+    display: 'flex', 
+    flexWrap: 'wrap', 
+    gap: '10px' 
+  }}
+>
+  <input placeholder="ISBN" value={newBook.isbn} onChange={e=>setNewBook({...newBook,isbn:e.target.value})} required/>
+  <input placeholder="Title" value={newBook.title} onChange={e=>setNewBook({...newBook,title:e.target.value})} required/>
+  <input placeholder="Author" value={newBook.author} onChange={e=>setNewBook({...newBook,author:e.target.value})}/>
+  <input placeholder="Subject" value={newBook.subject} onChange={e=>setNewBook({...newBook,subject:e.target.value})}/>
+  <input placeholder="Year Level" value={newBook.year_level} onChange={e=>setNewBook({...newBook,year_level:e.target.value})}/>
+  <input placeholder="Price" type="number" value={newBook.price} onChange={e=>setNewBook({...newBook,price:e.target.value})}/>
+  <input placeholder="Currency" value={newBook.currency} onChange={e=>setNewBook({...newBook,currency:e.target.value})}/>
+  <input placeholder="Supplier" value={newBook.supplier} onChange={e=>setNewBook({...newBook,supplier:e.target.value})}/>
+  <input placeholder="Stock" type="number" value={newBook.stock} onChange={e=>setNewBook({...newBook,stock:e.target.value})}/>
+  <button type="submit">➕ Add Book</button>
+</form>
 
       {message && <p style={{ color: 'green' }}>{message}</p>}
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
