@@ -1,4 +1,15 @@
-// backend/src/db.js
-// Temporary placeholder DB connection for MVP
+﻿import pkg from "pg";
+import dotenv from "dotenv";
 
-export default {};
+dotenv.config();
+const { Pool } = pkg;
+
+// Use DATABASE_URL directly (works for Neon, Supabase, Render, etc.)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+export default pool;

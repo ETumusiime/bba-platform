@@ -1,0 +1,347 @@
+﻿/* --------------------------------------------
+   Bethel Bridge Academy Global Styles
+   Cambridge Academic Theme
+--------------------------------------------- */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base Layout */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc;
+  font-family: Cambria, Georgia, serif;
+  color: #002147;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Card container */
+.card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+  padding: 2rem;
+  width: 380px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
+/* Inputs */
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+  font-family: Cambria, Georgia, serif;
+  box-sizing: border-box;
+}
+
+/* Button */
+button {
+  background-color: #002147;
+  color: white;
+  padding: 10px 0;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  background-color: #D4AF37;
+  color: #002147;
+}
+
+/* Footer */
+footer {
+  margin-top: 2rem;
+  font-size: 13px;
+  color: #555;
+  text-align: center;
+}
+
+/* --------------------------------------------
+   Optional Cambridge Global Enhancements
+--------------------------------------------- */
+
+/* Google font for headings */
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
+
+:root {
+  --bba-navy: #12417A;
+  --bba-blue: #1E5AA8;
+  --bba-ink: #3a4c66;
+  --bba-bg: #f4f7fb;
+}
+
+/* Smooth font rendering */
+html, body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Apply Merriweather for headings */
+h1, h2, h3, h4 {
+  font-family: 'Merriweather', Georgia, serif;
+  color: var(--bba-navy);
+}
+
+/* Soft background consistency */
+body {
+  background: var(--bba-bg);
+}
+
+/* Default text tone */
+p, span, a, li {
+  color: var(--bba-ink);
+}
+
+/* -------- Dashboard Theme -------- */
+.dash-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f7f9fc;
+  font-family: "Cambria", Georgia, serif;
+}
+
+.dash-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  padding: 3rem;
+  width: 450px;
+  text-align: center;
+  border: 1px solid #e0e6ed;
+  transition: all 0.3s ease;
+}
+
+.dash-title {
+  font-size: 1.6rem;
+  color: #002147;
+  margin-bottom: 0.5rem;
+}
+
+.dash-sub {
+  font-size: 1rem;
+  color: #444;
+}
+
+.dash-countdown {
+  font-size: 1.1rem;
+  color: #d97706;
+  margin: 1rem 0;
+}
+
+.dash-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+.dash-buttons button {
+  flex: 1;
+  padding: 0.7rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #002147;
+  color: #fff;
+  font-size: 1rem;
+  transition: background 0.3s;
+}
+
+.dash-buttons button:hover {
+  background: #D4AF37;
+  color: #002147;
+}
+
+button.logout {
+  background: #c0392b;
+}
+button.logout:hover {
+  background: #e74c3c;
+  color: #fff;
+}
+
+/* ------- Extended Dashboard Layout ------- */
+.dash-card-wide {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  padding: 3rem;
+  width: 80%;
+  max-width: 900px;
+  text-align: center;
+  border: 1px solid #e0e6ed;
+  transition: all 0.3s ease;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.mini-card {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+  transition: transform 0.2s;
+}
+.mini-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+.mini-card h3 {
+  color: #002147;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+.mini-card p {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+.mini-card button {
+  background-color: #002147;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.mini-card button:hover {
+  background-color: #D4AF37;
+  color: #002147;
+}
+
+/* -------- Refined Professional Layout -------- */
+.dash-card-wide {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  padding: 3rem;
+  width: 90%;
+  max-width: 1100px;
+  text-align: center;
+  border: 1px solid #e0e6ed;
+}
+
+.dash-header {
+  margin-bottom: 2rem;
+}
+
+.dash-header h1 {
+  color: #002147;
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.dash-header p {
+  color: #444;
+  font-size: 1rem;
+  margin: 0.3rem 0;
+}
+
+.dash-countdown {
+  color: #d97706;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.dash-grid-horizontal {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.mini-card {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  flex: 1;
+  min-width: 250px;
+  border: 1px solid #e5e7eb;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mini-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.06);
+}
+
+.mini-card h3 {
+  color: #002147;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.mini-card p {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.mini-card button {
+  background-color: #002147;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s ease;
+}
+
+.mini-card button:hover {
+  background-color: #D4AF37;
+  color: #002147;
+}
+
+.dash-buttons-bottom {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.dash-buttons-bottom button {
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.dash-buttons-bottom button:hover {
+  background-color: #D4AF37;
+  color: #002147;
+}
+
+button.logout {
+  background: #c0392b;
+  color: white;
+}
+
+button.logout:hover {
+  background: #e74c3c;
+  color: #fff;
+}

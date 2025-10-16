@@ -1,0 +1,58 @@
+{
+  "9781108936767": {
+    "title": "Cambridge IGCSE™ Biology Coursebook with Digital Access (2 Years)",
+    "edition": "4th Edition",
+    "author": "Mary Jones, Diane Fellowes-Freeman, Karen Morrison",
+    "published": "March 2021",
+    "format": "Print + Digital",
+    "description": "Supports learners through the Cambridge IGCSE™ Biology syllabus (0610/0970)."
+  },
+  "9781108951609": {
+    "title": "Cambridge IGCSE™ Chemistry Coursebook with Digital Access (2 Years)",
+    "edition": "5th Edition",
+    "author": "Richard Harwood, Ian Lodge",
+    "published": "April 2021",
+    "format": "Print + Digital",
+    "description": "Supports learners through the Cambridge IGCSE™ Chemistry syllabus (0620/0971)."
+  },
+  "9781108888073": {
+    "title": "Cambridge IGCSE™ Physics Coursebook with Digital Access (2 Years)",
+    "edition": "4th Edition",
+    "author": "David Sang, Graham Jones, Gurinder Chadha, Richard Woodside",
+    "published": "March 2021",
+    "format": "Print + Digital",
+    "description": "Supports learners through the Cambridge IGCSE™ Physics syllabus (0625/0972)."
+  },
+  "9781108909150": {
+    "title": "Cambridge IGCSE™ Mathematics Core and Extended Coursebook with Digital Access (2 Years)",
+    "edition": "3rd Edition",
+    "author": "Karen Morrison, Nick Hambleton",
+    "published": "May 2021",
+    "format": "Print + Digital",
+    "description": "Covers the Cambridge IGCSE™ Mathematics 0580 syllabus (Core & Extended)."
+  },
+  "9781108438902": {
+    "title": "Cambridge IGCSE™ First Language English Coursebook with Digital Access (2 Years)",
+    "edition": "6th Edition",
+    "author": "Marian Cox",
+    "published": "2021",
+    "format": "Print + Digital",
+    "description": "Supports the Cambridge IGCSE™ First Language English 0500/0990 syllabus."
+  },
+  "9781108440356": {
+    "title": "Cambridge IGCSE™ Enterprise Coursebook",
+    "edition": "2nd Edition",
+    "author": "Terry Cook, Mark Fisher, Colin Friel",
+    "published": "February 2018",
+    "format": "Print",
+    "description": "Supports the Cambridge IGCSE™ Enterprise 0454 syllabus."
+  },
+  "9781108915144": {
+    "title": "Cambridge IGCSE™ and O Level Computer Science Coursebook with Digital Access (2 Years)",
+    "edition": "2nd Edition",
+    "author": "Sarah Lawrey, Victoria Ellis",
+    "published": "April 2021",
+    "format": "Print + Digital",
+    "description": "Supports learners through the Cambridge IGCSE™ and O Level Computer Science syllabuses (0478/0984/2210)."
+  }
+}

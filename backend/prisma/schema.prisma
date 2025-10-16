@@ -13,6 +13,9 @@ model User {
   email       String   @unique
   password    String
   role        Role     @default(PARENT)
+  trialStartDate      DateTime?
+  trialEndDate        DateTime?
+  subscriptionStatus  String? @default("trial")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -22,4 +25,18 @@ enum Role {
   STUDENT
   SUPPLIER
   ADMIN
+}
+
+model Book {
+  id         Int      @id @default(autoincrement())
+  title      String
+  author     String?
+  subject    String?
+  code       String?
+  edition    String?
+  isbn       String?  @unique
+  markup     Float?   @default(0)
+  price      Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
