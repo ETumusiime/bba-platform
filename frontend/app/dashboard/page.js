@@ -1,22 +1,30 @@
 ﻿"use client";
+
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { getToken } from "@/lib/auth";
 
+/**
+ * Parent Dashboard
+ * Works as a client component.
+ * Auth is handled via cookie by middleware; this only re-checks for safety.
+ */
 export default function ParentDashboard() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [openSection, setOpenSection] = useState("academics");
 
   /* -------------------------------------------------------------------------- */
-  /* 🔐 Safe client-side auth check — redirect to "/" if not logged in */
+  /* 🔐  Quick client-side guard — if no cookie, redirect to login              */
   /* -------------------------------------------------------------------------- */
   useEffect(() => {
-    const savedToken = getToken() || localStorage.getItem("bba_token");
-    if (!savedToken) {
-      console.warn("🚫 No token found, redirecting to / ...");
-      router.replace("/"); // ✅ redirect to homepage (login)
+    const hasParentCookie =
+      document.cookie.includes("bba_parent_token=") ||
+      localStorage.getItem("bba_parent_token");
+
+    if (!hasParentCookie) {
+      console.warn("🚫 No parent token found; redirecting to login …");
+      router.replace("/login?next=/dashboard"); // ✅ updated from /auth/login
     } else {
       setReady(true);
     }
@@ -25,35 +33,36 @@ export default function ParentDashboard() {
   if (!ready) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-100 text-gray-600 text-lg">
-        Loading dashboard...
+        Loading dashboard…
       </main>
     );
   }
 
   /* -------------------------------------------------------------------------- */
-  /* 🧭 Section toggler */
+  /* 🧭  Section toggler                                                        */
   /* -------------------------------------------------------------------------- */
-  const toggleSection = (section) => {
+  const toggleSection = (section) =>
     setOpenSection(openSection === section ? "" : section);
-  };
 
   /* -------------------------------------------------------------------------- */
-  /* 🚀 Navigation + Functional Handlers */
+  /* 🚀  Navigation + handlers                                                  */
   /* -------------------------------------------------------------------------- */
   const goToBooks = () => router.push("/book-selection");
   const goToProfile = () => router.push("/profile");
 
   const handleLogout = () => {
-    localStorage.removeItem("bba_token");
+    localStorage.removeItem("bba_parent_token");
+    document.cookie =
+      "bba_parent_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     toast.success("👋 Logged out successfully");
-    router.replace("/"); // ✅ redirect to homepage (login)
+    router.replace("/login"); // ✅ updated from /auth/login
   };
 
   const comingSoon = () =>
     toast("🚧 Coming Soon ✨", { icon: "⏳", duration: 2500 });
 
   /* -------------------------------------------------------------------------- */
-  /* 🎨 UI Rendering */
+  /* 🎨  UI Rendering                                                           */
   /* -------------------------------------------------------------------------- */
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-100 py-8 px-4 flex flex-col items-center">
