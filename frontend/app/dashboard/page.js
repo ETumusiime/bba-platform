@@ -1,122 +1,201 @@
 ﻿"use client";
-
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import toast, { Toaster } from "react-hot-toast";
+import { getToken } from "@/lib/auth";
 
-const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-
-export default function DashboardPage() {
+export default function ParentDashboard() {
   const router = useRouter();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
+  const [openSection, setOpenSection] = useState("academics");
 
+  /* -------------------------------------------------------------------------- */
+  /* 🔐 Safe client-side auth check — redirect to "/" if not logged in */
+  /* -------------------------------------------------------------------------- */
   useEffect(() => {
-    const token = localStorage.getItem("bba_token");
-    if (!token) {
-      router.replace("/login");
-      return;
+    const savedToken = getToken() || localStorage.getItem("bba_token");
+    if (!savedToken) {
+      console.warn("🚫 No token found, redirecting to / ...");
+      router.replace("/"); // ✅ redirect to homepage (login)
+    } else {
+      setReady(true);
     }
-
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch(`${API}/api/parents/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-
-        if (res.status === 403 && data?.redirect) {
-          router.push(data.redirect);
-          return;
-        }
-
-        setProfile(data);
-      } catch (err) {
-        console.error("Error loading profile:", err);
-        setError("Failed to load profile.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
   }, [router]);
 
-  const daysLeft = profile?.trial_end_date
-    ? Math.max(
-        0,
-        Math.ceil(
-          (new Date(profile.trial_end_date) - new Date()) /
-            (1000 * 60 * 60 * 24)
-        )
-      )
-    : 0;
+  if (!ready) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gray-100 text-gray-600 text-lg">
+        Loading dashboard...
+      </main>
+    );
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* 🧭 Section toggler */
+  /* -------------------------------------------------------------------------- */
+  const toggleSection = (section) => {
+    setOpenSection(openSection === section ? "" : section);
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /* 🚀 Navigation + Functional Handlers */
+  /* -------------------------------------------------------------------------- */
+  const goToBooks = () => router.push("/book-selection");
+  const goToProfile = () => router.push("/profile");
 
   const handleLogout = () => {
     localStorage.removeItem("bba_token");
-    router.replace("/login");
+    toast.success("👋 Logged out successfully");
+    router.replace("/"); // ✅ redirect to homepage (login)
   };
 
-  const handleSubscribe = () => {
-    router.push("/billing");
-  };
+  const comingSoon = () =>
+    toast("🚧 Coming Soon ✨", { icon: "⏳", duration: 2500 });
 
-  if (loading)
-    return (
-      <div className="dash-wrapper">
-        <p>Loading your dashboard…</p>
-      </div>
-    );
-
-  if (error)
-    return (
-      <div className="dash-wrapper">
-        <p>{error}</p>
-      </div>
-    );
-
+  /* -------------------------------------------------------------------------- */
+  /* 🎨 UI Rendering */
+  /* -------------------------------------------------------------------------- */
   return (
-    <div className="dash-wrapper">
-      <div className="dash-card-wide">
-        <header className="dash-header">
-          <h1>👋 Welcome, {profile?.name || "Parent"}!</h1>
-          {profile?.subscription_status === "trial" ? (
-            <>
-              <p>⏳ Your free trial ends on {new Date(profile.trial_end_date).toLocaleDateString()}</p>
-              <span className="dash-countdown">{daysLeft} days left</span>
-            </>
-          ) : (
-            <p>✅ You are on an active subscription.</p>
-          )}
-        </header>
+    <main className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-100 py-8 px-4 flex flex-col items-center">
+      <Toaster position="top-center" />
 
-        <div className="dash-grid-horizontal">
-          <div className="mini-card">
-            <h3>Children</h3>
-            <p>Add and manage your learners.</p>
-            <button onClick={() => router.push("/children")}>Open →</button>
-          </div>
-          <div className="mini-card">
-            <h3>Book Catalogue</h3>
-            <p>Search by Subject, Code, or ISBN.</p>
-            <button onClick={() => router.push("/books")}>Browse →</button>
-          </div>
-          <div className="mini-card">
-            <h3>Subscription</h3>
-            <p>View your trial or manage billing.</p>
-            <button onClick={() => router.push("/billing")}>Manage →</button>
-          </div>
-        </div>
-
-        <div className="dash-buttons-bottom">
-          {profile?.subscription_status === "trial" && (
-            <button onClick={handleSubscribe}>Subscribe Now</button>
-          )}
-          <button onClick={handleLogout} className="logout">
+      {/* Header */}
+      <div className="w-full max-w-6xl flex flex-col sm:flex-row justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-indigo-800 mb-3 sm:mb-0">
+          Parent Dashboard
+        </h1>
+        <div className="flex gap-3">
+          <button
+            onClick={() => router.push("/")}
+            className="bg-gray-100 text-gray-800 px-4 py-2 rounded-md shadow hover:bg-gray-200 transition"
+          >
+            ⬅ Back to Home
+          </button>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md shadow transition"
+          >
             Logout
           </button>
         </div>
       </div>
+
+      {/* ========== ACADEMICS HUB ========== */}
+      <Accordion
+        title="📘 Academics Hub"
+        color="text-blue-900"
+        section="academics"
+        openSection={openSection}
+        toggleSection={toggleSection}
+      >
+        <DashboardCard title="Browse Book Catalogue" icon="📚" onClick={goToBooks} />
+        <DashboardCard title="Register for Labs" icon="🧪" onClick={comingSoon} />
+        <DashboardCard title="Register for Exams" icon="🧾" onClick={comingSoon} />
+        <DashboardCard title="Book a Tutor" icon="🎓" onClick={comingSoon} />
+        <DashboardCard title="University Connect" icon="🏛️" onClick={comingSoon} />
+        <DashboardCard title="Lesson Summaries" icon="🧮" onClick={comingSoon} />
+        <DashboardCard title="Progress Reports" icon="📈" onClick={comingSoon} />
+      </Accordion>
+
+      {/* ========== TALENT & ACTIVITIES HUB ========== */}
+      <Accordion
+        title="🎭 Talent & Activities Hub"
+        color="text-orange-800"
+        section="talent"
+        openSection={openSection}
+        toggleSection={toggleSection}
+      >
+        <DashboardCard title="Sports" icon="⚽" onClick={comingSoon} />
+        <DashboardCard title="Music" icon="🎵" onClick={comingSoon} />
+        <DashboardCard title="Dance" icon="💃" onClick={comingSoon} />
+        <DashboardCard title="Creative Skills" icon="🧩" onClick={comingSoon} />
+      </Accordion>
+
+      {/* ========== PARENT GROWTH HUB ========== */}
+      <Accordion
+        title="🌱 Parent Growth & Community Hub"
+        color="text-green-800"
+        section="growth"
+        openSection={openSection}
+        toggleSection={toggleSection}
+      >
+        <DashboardCard title="Parent Academy" icon="🎓" onClick={comingSoon} />
+        <DashboardCard title="Faith & Family Growth" icon="🙏" onClick={comingSoon} />
+      </Accordion>
+
+      {/* ========== ADMIN HUB ========== */}
+      <Accordion
+        title="👨‍👩‍👧 Parent Administration Hub"
+        color="text-indigo-700"
+        section="admin"
+        openSection={openSection}
+        toggleSection={toggleSection}
+      >
+        <DashboardCard title="Manage Children" icon="👨‍👩‍👧" onClick={comingSoon} />
+        <DashboardCard title="My Orders" icon="🛍️" onClick={comingSoon} />
+        <DashboardCard title="Subscription & Billing" icon="💳" onClick={comingSoon} />
+      </Accordion>
+
+      {/* ========== PERSONAL SETTINGS ========== */}
+      <Accordion
+        title="👤 Personal Settings"
+        color="text-gray-700"
+        section="profile"
+        openSection={openSection}
+        toggleSection={toggleSection}
+      >
+        <DashboardCard title="My Profile" icon="👤" onClick={goToProfile} />
+      </Accordion>
+
+      {/* Footer */}
+      <footer className="text-center text-gray-500 text-sm mt-8">
+        © 2025{" "}
+        <span className="font-semibold text-indigo-700">
+          Bethel Bridge Academy
+        </span>
+        . All rights reserved.
+      </footer>
+    </main>
+  );
+}
+
+/* -------------------------- 🧩 COMPONENTS -------------------------- */
+function Accordion({ title, color, section, openSection, toggleSection, children }) {
+  const isOpen = openSection === section;
+
+  return (
+    <div className="w-full max-w-6xl mb-4 border border-gray-200 rounded-xl bg-white shadow-sm">
+      <button
+        onClick={() => toggleSection(section)}
+        className={`w-full flex justify-between items-center px-5 py-4 font-semibold ${color} text-lg sm:text-xl`}
+      >
+        <span>{title}</span>
+        <span className="text-gray-400 text-2xl">{isOpen ? "−" : "+"}</span>
+      </button>
+
+      <div
+        className={`overflow-hidden transition-all duration-500 ${
+          isOpen ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 p-5 bg-gray-50">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardCard({ title, icon, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      className="cursor-pointer rounded-xl p-6 flex flex-col items-center justify-center
+                 shadow-md hover:shadow-xl transition-all text-center
+                 bg-gradient-to-br from-white to-blue-50 border border-blue-100 hover:border-blue-300"
+    >
+      <div className="text-4xl mb-3">{icon}</div>
+      <h3 className="font-semibold text-blue-900 text-sm sm:text-base">{title}</h3>
     </div>
   );
 }

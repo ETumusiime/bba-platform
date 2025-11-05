@@ -1,100 +1,162 @@
 "use client";
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import toast from "react-hot-toast";
+import { useCart } from "@/context/CartContext";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-export default function BookDetailPage() {
+export default function BookDetailsPage() {
   const { isbn } = useParams();
+  const router = useRouter();
+  const { addBook } = useCart();
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchBook() {
+    const fetchBook = async () => {
       try {
-        const res = await fetch(`${API}/api/books?isbn=${isbn}`);
+        const url = `${API}/api/books/${isbn}`;
+        const res = await fetch(url);
         const data = await res.json();
-        if (data && data.length > 0) setBook(data[0]);
+        if (!res.ok) throw new Error(data.message || "Book not found");
+        setBook(data);
+        toast.success("✅ Book details loaded successfully");
       } catch (err) {
-        console.error("Error fetching book:", err);
+        console.error("❌ Error fetching book:", err);
+        toast.error("Book not found");
       } finally {
         setLoading(false);
       }
-    }
+    };
     if (isbn) fetchBook();
   }, [isbn]);
 
-  if (loading) return <div style={{ padding: 40 }}>⏳ Loading book...</div>;
-  if (!book) return <div style={{ padding: 40 }}>❌ Book not found</div>;
+  const handleAddToCart = () => {
+    if (!book) return;
+    addBook({
+      isbn: book.isbn,
+      title: book.title,
+      price: book.price || book.price_ugx || 0,
+      cover_url:
+        book.image_url?.startsWith("http")
+          ? book.image_url
+          : `${API}${book.image_url || ""}`,
+    });
+    toast.success("✅ Added to cart");
+  };
 
-  // ✅ Build cover image URL from backend
-  const coverSrc = `${API}/covers_highres/${(book.isbn || "").replace(/[\s-]/g, "")}.jpg`;
-  console.log("🖼️ Image URL:", coverSrc);
+  if (loading)
+    return (
+      <div className="flex justify-center items-center min-h-screen text-gray-500">
+        Loading book details...
+      </div>
+    );
+
+  if (!book)
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen text-gray-600">
+        <p>Book not found.</p>
+        <button
+          onClick={() => router.push("/book-selection")}
+          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+        >
+          Back to Selection
+        </button>
+      </div>
+    );
 
   return (
-    <div style={{ padding: "40px", maxWidth: "900px", margin: "auto" }}>
-      <div style={{ display: "flex", gap: "30px" }}>
-        <img
-          src={coverSrc}
-          alt={book.title}
-          style={{
-            width: "280px",
-            borderRadius: "6px",
-            objectFit: "contain",
-            boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-          }}
-          onError={(e) => {
-            e.currentTarget.src = "/placeholder-cover.png";
-          }}
-        />
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-8 flex flex-col items-center">
+      <div className="max-w-5xl w-full bg-white shadow-xl rounded-xl p-6 md:p-10 flex flex-col md:flex-row gap-10">
+        <div className="w-full md:w-1/3 flex justify-center">
+          <div className="w-[280px] h-[360px] flex items-center justify-center border rounded-lg bg-white">
+            <Image
+              src={
+                book.image_url?.startsWith("http")
+                  ? book.image_url
+                  : `${API}${book.image_url || ""}`
+              }
+              alt={book.title || "Book cover"}
+              width={250}
+              height={350}
+              unoptimized
+              className="object-contain rounded-md"
+              onError={(e) => {
+                e.currentTarget.src = "/placeholder-book.png";
+              }}
+            />
+          </div>
+        </div>
 
-        <div>
-          <h1 style={{ marginBottom: "10px" }}>{book.title}</h1>
-          <p><b>Edition:</b> {book.edition || "—"}</p>
-          <p><b>Author:</b> {book.author || "—"}</p>
-          <p><b>Published:</b> {book.published_date || "—"}</p>
-          <p><b>Format:</b> {book.format || "—"}</p>
-          <p><b>ISBN:</b> {book.isbn || "—"}</p>
+        <div className="flex flex-col justify-start flex-1">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            {book.title}
+          </h1>
+          <p className="text-gray-600 mb-1">
+            <span className="font-semibold">Subject:</span> {book.subject || "—"}
+          </p>
+          <p className="text-gray-600 mb-1">
+            <span className="font-semibold">Category:</span>{" "}
+            {book.category_name || book.category || "—"}
+          </p>
+          <p className="text-gray-600 mb-1">
+            <span className="font-semibold">Level:</span>{" "}
+            {book.grade_year || "—"}
+          </p>
+          <p className="text-gray-600 mb-1">
+            <span className="font-semibold">Edition:</span>{" "}
+            {book.edition || "—"}
+          </p>
+          {book.price_ugx && (
+            <p className="text-gray-600 mb-1">
+              <span className="font-semibold">Price:</span>{" "}
+              UGX {Number(book.price_ugx).toLocaleString()}
+            </p>
+          )}
+          <p className="text-gray-500 text-sm mt-2">
+            ISBN: <span className="font-mono">{book.isbn}</span>
+          </p>
+
+          <div className="mt-6 flex flex-wrap gap-4">
+            {/* 🛒 Add to Cart */}
+            <button
+              onClick={handleAddToCart}
+              className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition"
+            >
+              Add to Cart
+            </button>
+
+            {/* 🔙 Back to Subjects */}
+            {typeof window !== "undefined" &&
+              window.location.search.includes("from=navigation") && (
+                <button
+                  onClick={() => {
+                    const url = new URL(window.location.href);
+                    const category = url.searchParams.get("category");
+                    const year = url.searchParams.get("year");
+                    // 🚀 Guaranteed full reload of subjects page
+                    window.location.replace(`/books?category=${category}&year=${year}`);
+                  }}
+                  className="bg-gray-200 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-300 transition"
+                >
+                  ← Subjects
+                </button>
+              )}
+
+            {/* 📚 Back to Select Books */}
+            <button
+              onClick={() => router.push("/book-selection")}
+              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition"
+            >
+              Select Books
+            </button>
+          </div>
         </div>
       </div>
-
-      <hr style={{ margin: "30px 0" }} />
-
-      {book.overview && (
-        <>
-          <h2>Overview</h2>
-          <p>{book.overview}</p>
-        </>
-      )}
-
-      {book.features && (
-        <>
-          <h2>Features</h2>
-          <ul>
-            {book.features.split("\n").map((f, i) => (
-              <li key={i}>{f}</li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {book.contents && (
-        <>
-          <h2>Contents</h2>
-          <ul>
-            {book.contents.split("\n").map((c, i) => (
-              <li key={i}>{c}</li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {book.accessibility && (
-        <>
-          <h2>Accessibility</h2>
-          <p>{book.accessibility}</p>
-        </>
-      )}
-    </div>
+    </main>
   );
 }

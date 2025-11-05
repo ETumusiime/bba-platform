@@ -1,48 +1,59 @@
 ﻿"use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getToken } from "../lib/auth";
+import { useRouter, usePathname } from "next/navigation";
 
+/**
+ * ✅ ProtectedRoute — final stable version
+ * Guarantees correct token usage and stops cross redirects.
+ */
 export default function ProtectedRoute({ children }) {
   const router = useRouter();
-  const [hydrated, setHydrated] = useState(false);
-  const [token, setToken] = useState(null);
+  const pathname = usePathname();
+  const [ready, setReady] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
 
-  // Wait for client hydration first
   useEffect(() => {
-    setHydrated(true);
+    // delay check until after hydration
+    const timer = setTimeout(() => setReady(true), 100);
+    return () => clearTimeout(timer);
   }, []);
 
-  // After hydration, check for token
   useEffect(() => {
-    if (!hydrated) return;
-    const t = getToken();
-    console.log("ProtectedRoute → storedToken:", t);
-    if (t && t.length > 20) {
-      setToken(t);
-    } else {
-      router.replace("/login");
-    }
-  }, [hydrated, router]);
+    if (!ready) return;
 
-  if (!hydrated) {
+    const isAdmin = pathname.startsWith("/admin");
+    const tokenKey = isAdmin ? "adminToken" : "parentToken";
+    const redirectPath = isAdmin ? "/admin/login" : "/login";
+    const token = localStorage.getItem(tokenKey);
+
+    // ✅ Prevent redirect if adminToken exists even briefly
+    if (token && token.length > 20) {
+      setAuthorized(true);
+    } else {
+      setAuthorized(false);
+      if (!isAdmin || pathname === "/admin") {
+        router.replace(redirectPath);
+      }
+    }
+  }, [pathname, ready, router]);
+
+  if (!ready) {
     return (
       <div
         style={{
-          minHeight: "100dvh",
+          minHeight: "100vh",
           display: "grid",
           placeItems: "center",
           background: "#f4f7fb",
           color: "#12417A",
-          fontFamily: "'Merriweather', Georgia, serif",
         }}
       >
-        <div>Loading session…</div>
+        Loading session…
       </div>
     );
   }
 
-  if (!token) return null;
+  if (!authorized) return null;
 
   return children;
 }

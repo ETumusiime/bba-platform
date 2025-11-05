@@ -1,6 +1,6 @@
-import { dirname } from "path";
+import path from "path";
 import { fileURLToPath } from "url";
-import { join } from "path";
+import { dirname } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -8,11 +8,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   reactStrictMode: true,
   distDir: ".next",
+
   webpack: (config) => {
-    config.resolve.alias["@"] = join(__dirname);
+    // ✅ Log to confirm alias in console
+    console.log("✅ Applying alias '@' →", path.resolve(__dirname));
+    config.resolve.alias["@"] = path.resolve(__dirname);
     return config;
   },
-  outputFileTracingRoot: __dirname   // ? Tells Next.js "frontend" is the real root
 };
 
 export default nextConfig;
