@@ -18,6 +18,7 @@ import adminBooksRouter from "./routes/adminBooksRoutes.js"; // ✅ Admin books 
 import adminAuthRouter from "./routes/adminAuthRoutes.js";   // ✅ Admin login routes
 import cartRoutes from "./routes/cartRoutes.js";             // 🛒 Add-to-Cart routes
 import paymentsRoutes from "./modules/payments/routes.js";   // 💳 Flutterwave Payments
+import { testSendGrid } from "./modules/notifications/testEmail.js"; // ✉️ Test SendGrid route
 
 dotenv.config();
 
@@ -140,6 +141,9 @@ app.use("/api/cart", cartRoutes);
 
 // 💳 Payments (Flutterwave Inline & Verification)
 app.use("/api/payments", paymentsRoutes);
+
+// ✉️ SendGrid test route
+app.get("/api/test-email", testSendGrid);
 
 // 🧰 Debug route — check visible files in one category
 app.get("/api/debug/covers", (req, res) => {

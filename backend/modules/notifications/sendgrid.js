@@ -1,6 +1,9 @@
 // backend/modules/notifications/sendgrid.js
 import sgMail from "@sendgrid/mail";
 
+/* -------------------------------------------------------------------------- */
+/* ⚙️ Env & bootstrap                                                         */
+/* -------------------------------------------------------------------------- */
 const {
   SENDGRID_API_KEY,
   EMAIL_FROM,
@@ -11,10 +14,21 @@ const {
 if (SENDGRID_API_KEY) {
   sgMail.setApiKey(SENDGRID_API_KEY);
   console.log("🚀 SendGrid initialized successfully.");
+} else {
+  console.warn("⚠️ SENDGRID_API_KEY missing — email sending is disabled.");
+}
+
+function hasMailSetup() {
+  if (!SENDGRID_API_KEY) return false;
+  if (!EMAIL_FROM) {
+    console.warn("⚠️ EMAIL_FROM missing — emails will be skipped.");
+    return false;
+  }
+  return true;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Utility helpers                                                            */
+/* Utilities                                                                  */
 /* -------------------------------------------------------------------------- */
 function formatUGX(value) {
   if (value === null || value === undefined || isNaN(Number(value))) return "UGX 0";
@@ -45,8 +59,17 @@ function parseItems(items_json) {
   return [];
 }
 
+function toText(html = "") {
+  // very light html → text
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .trim();
+}
+
 /* -------------------------------------------------------------------------- */
-/* Modern HTML Shell (used by all emails)                                     */
+/* HTML Shell + table                                                         */
 /* -------------------------------------------------------------------------- */
 function baseShell(title, body) {
   return `
@@ -60,12 +83,9 @@ function baseShell(title, body) {
         Bethel Bridge Academy • Kampala, Uganda
       </div>
     </div>
-  </div>`;
+  </div>`.trim();
 }
 
-/* -------------------------------------------------------------------------- */
-/* Reusable table builder                                                     */
-/* -------------------------------------------------------------------------- */
 function itemsTable(items = []) {
   const rows = items
     .map(
@@ -88,18 +108,19 @@ function itemsTable(items = []) {
       </tr>
     </thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>`.trim();
 }
 
 /* -------------------------------------------------------------------------- */
-/* ✅ Payment Flow Emails — For Flutterwave Integration                       */
+/* ✉️ Payment Flow Emails (Flutterwave)                                       */
 /* -------------------------------------------------------------------------- */
 
-/** Receipt → Moses (Planet Bookstore) */
+/** 1) Receipt → Moses (Planet Bookstore) */
 export async function sendOrderReceiptToMoses(summary) {
-  if (!SENDGRID_API_KEY) return;
+  if (!hasMailSetup()) return;
   try {
     const { parent = {}, items = [] } = summary;
+
     const body = `
       <p>Hello Moses,</p>
       <p>A parent has completed payment for Cambridge books via BBA (Sandbox).</p>
@@ -107,13 +128,14 @@ export async function sendOrderReceiptToMoses(summary) {
       <p><strong>Parent:</strong> ${escapeHtml(parent.name || "-")} (${escapeHtml(parent.email || "-")})<br/>
          <strong>Total Paid:</strong> ${formatUGX(summary.amountPaidUGX)} <br/>
          <strong>Tx Ref:</strong> ${escapeHtml(summary.tx_ref)}</p>
-      <p>Please forward this order to Mallory and coordinate access codes.</p>`;
+      <p>Please forward this order to Mallory and coordinate access codes.</p>`.trim();
 
     await sgMail.send({
       to: MOSES_EMAIL,
       from: EMAIL_FROM,
       subject: "BBA — Paid Order Receipt (Sandbox)",
       html: baseShell("New Paid Order — BBA", body),
+      text: toText(body),
     });
 
     console.log("📨 Email sent to Moses (receipt).");
@@ -122,24 +144,26 @@ export async function sendOrderReceiptToMoses(summary) {
   }
 }
 
-/** Internal notice → BBA Admin */
+/** 2) Internal notice → BBA Admin */
 export async function sendAdminOrderNotice(summary) {
-  if (!SENDGRID_API_KEY) return;
+  if (!hasMailSetup()) return;
   try {
     const { parent = {}, items = [] } = summary;
+
     const body = `
       <p>Hi BBA Admin,</p>
       <p>A payment has been verified via Flutterwave (Sandbox).</p>
       ${itemsTable(items)}
       <p><strong>Parent:</strong> ${escapeHtml(parent.name || "-")} (${escapeHtml(parent.email || "-")})<br/>
          <strong>Amount Paid:</strong> ${formatUGX(summary.amountPaidUGX)}<br/>
-         <strong>Tx Ref:</strong> ${escapeHtml(summary.tx_ref)}</p>`;
+         <strong>Tx Ref:</strong> ${escapeHtml(summary.tx_ref)}</p>`.trim();
 
     await sgMail.send({
       to: BBA_ADMIN_EMAIL,
       from: EMAIL_FROM,
       subject: "BBA — Payment Verified (Sandbox)",
       html: baseShell("Payment Verified — Internal Notice", body),
+      text: toText(body),
     });
 
     console.log("📨 Email sent to Admin (verification notice).");
@@ -148,23 +172,24 @@ export async function sendAdminOrderNotice(summary) {
   }
 }
 
-/** Optional — Admin → Parent codes */
+/** 3) Optional — Admin → Parent codes */
 export async function sendParentAccessCodesEmail({ parent, codes = [] }) {
-  if (!SENDGRID_API_KEY) return;
+  if (!hasMailSetup()) return;
   try {
-    const list = codes.map(
-      (c) => `<li><strong>${escapeHtml(c.title)}:</strong> ${escapeHtml(c.code)}</li>`
-    ).join("");
+    const list = codes
+      .map((c) => `<li><strong>${escapeHtml(c.title)}:</strong> ${escapeHtml(c.code)}</li>`)
+      .join("");
     const body = `
       <p>Hello ${escapeHtml(parent.name || "Parent")},</p>
       <p>Thank you for your purchase. Here are your access codes:</p>
-      <ul>${list}</ul>`;
+      <ul>${list}</ul>`.trim();
 
     await sgMail.send({
       to: parent.email,
       from: EMAIL_FROM,
       subject: "Your Cambridge Access Codes — BBA",
       html: baseShell("Your Cambridge Access Codes", body),
+      text: toText(body),
     });
 
     console.log("📨 Email sent to Parent (access codes).");
@@ -174,39 +199,30 @@ export async function sendParentAccessCodesEmail({ parent, codes = [] }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🧱 Existing Order/Payment Logic (kept from previous version)               */
+/* 🧱 Keep legacy helpers (used elsewhere)                                    */
 /* -------------------------------------------------------------------------- */
-
 export async function notifyNewOrder(order) {
+  if (!hasMailSetup()) return;
   try {
     const { parent_name, parent_email } = order || {};
     const items = parseItems(order.items_json);
-    const rows = items
-      .map((it) => `- ${it.title ?? "Book"} (Qty: ${it.qty ?? 1})`)
-      .join("\n");
-
     const subject = `📘 New Order from ${parent_name}`;
-    const text = `
-New Book Order Notification
 
-Parent: ${parent_name} (${parent_email})
-Total: ${formatUGX(order.total_ugx)}
-Books:
-${rows || "(No line items)"}
-`;
-
-    const html = baseShell(subject, `
-      <p>New order received from <strong>${escapeHtml(parent_name)}</strong>.</p>
+    const htmlBody = `
+      <p>New order received from <strong>${escapeHtml(parent_name)}</strong> &lt;${escapeHtml(
+        parent_email || ""
+      )}&gt;</p>
       ${itemsTable(items)}
       <p><strong>Total:</strong> ${formatUGX(order.total_ugx)}</p>
-      <p>Status: <strong>PENDING_PAYMENT</strong></p>`);
+      <p>Status: <strong>PENDING_PAYMENT</strong></p>
+    `.trim();
 
     await sgMail.send({
-      to: [MOSES_EMAIL, BBA_ADMIN_EMAIL],
+      to: [MOSES_EMAIL, BBA_ADMIN_EMAIL].filter(Boolean),
       from: EMAIL_FROM,
       subject,
-      text,
-      html,
+      html: baseShell(subject, htmlBody),
+      text: toText(htmlBody),
     });
 
     console.log("✅ notifyNewOrder: HTML email sent to Moses + Admin.");
@@ -216,19 +232,22 @@ ${rows || "(No line items)"}
 }
 
 export async function notifyPaymentConfirmed(order) {
+  if (!hasMailSetup()) return;
   try {
     const { parent_name, parent_email, total_ugx } = order || {};
-    const html = baseShell("🎉 Payment Confirmed!", `
+    const htmlBody = `
       <p>Dear ${escapeHtml(parent_name || "Parent")},</p>
       <p>Your payment of <strong>${formatUGX(total_ugx)}</strong> has been received successfully.</p>
       <p>Your child’s books will be available in your <strong>BBA Dashboard</strong> within 5–7 days.</p>
-      <p>Thank you for choosing <strong>Bethel Bridge Academy</strong>!</p>`);
+      <p>Thank you for choosing <strong>Bethel Bridge Academy</strong>!</p>
+    `.trim();
 
     await sgMail.send({
       to: parent_email,
       from: EMAIL_FROM,
       subject: "✅ Payment Confirmed — Bethel Bridge Academy",
-      html,
+      html: baseShell("🎉 Payment Confirmed!", htmlBody),
+      text: toText(htmlBody),
     });
 
     console.log("✅ notifyPaymentConfirmed: confirmation sent to parent.");
