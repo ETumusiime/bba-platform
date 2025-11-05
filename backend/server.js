@@ -142,10 +142,14 @@ app.use("/api/cart", cartRoutes);
 // 💳 Payments (Flutterwave Inline & Verification)
 app.use("/api/payments", paymentsRoutes);
 
-// ✉️ SendGrid test route
-app.get("/api/test-email", testSendGrid);
+// ✉️ SendGrid test route — only in non-production
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/test-email", testSendGrid);
+}
 
-// 🧰 Debug route — check visible files in one category
+/* -------------------------------------------------------------------------- */
+/* 🧰 Debug route — check visible files in one category */
+/* -------------------------------------------------------------------------- */
 app.get("/api/debug/covers", (req, res) => {
   const folder = path.join(coversPath, "Upper Secondary");
   try {
