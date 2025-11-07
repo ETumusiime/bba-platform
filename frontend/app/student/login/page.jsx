@@ -9,30 +9,49 @@ export default function StudentLoginPage() {
   const params = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading]   = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function handleLogin(e) {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const res = await fetch("/api/student/auth/login", {
+      // 🧭 Call backend API directly
+      const res = await fetch("http://localhost:5000/api/child/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (!res.ok) throw new Error("Invalid credentials");
-      const { token } = await res.json();
 
-      // Store student token (MVP: non-httpOnly cookie for simplicity)
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Invalid credentials");
+      }
+
+      const data = await res.json();
+      const { token, child } = data;
+
+      if (!token) throw new Error("Missing token from server");
+
+      // 💾 Store JWT (non-httpOnly for MVP)
       localStorage.setItem("bba_child_token", token);
+      localStorage.setItem("bba_child_info", JSON.stringify(child));
       document.cookie = `bba_child_token=${token}; path=/; SameSite=Lax;`;
 
-      toast.success("✅ Welcome!");
-      const next = params.get("next") || "/student/dashboard";
-      router.replace(next);
+      // ✅ Display welcome toast (auto-dismiss in 2s)
+      const name = child?.firstName || username || "Student";
+      toast.success(`✅ Welcome, ${name}!`, { duration: 2000 });
+
+      // ⏳ Wait 2.2 seconds before navigating so toast clears
+      setTimeout(() => {
+        const next = params.get("next") || "/student/dashboard";
+        router.replace(next);
+      }, 2200);
     } catch (err) {
-      toast.error("❌ Login failed. Check your credentials.");
-      console.error(err);
+      console.error("❌ Login Error:", err);
+      toast.error(err.message || "❌ Login failed. Check your credentials.", {
+        duration: 2500,
+      });
     } finally {
       setLoading(false);
     }
@@ -42,13 +61,15 @@ export default function StudentLoginPage() {
     <main className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
       <Toaster position="top-center" />
       <div className="w-full max-w-md bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold text-center text-indigo-700 mb-6">Student Login</h1>
+        <h1 className="text-2xl font-bold text-center text-indigo-700 mb-6">
+          Student Login
+        </h1>
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <input
             className="border rounded p-3"
             placeholder="Username"
             value={username}
-            onChange={(e)=>setUsername(e.target.value)}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
           <input
@@ -56,7 +77,7 @@ export default function StudentLoginPage() {
             placeholder="Password"
             type="password"
             value={password}
-            onChange={(e)=>setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
           <button

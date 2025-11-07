@@ -14,14 +14,20 @@ import pool from "./db.js";
 /* -------------------------------------------------------------------------- */
 import booksRouter from "./routes/booksRoutes.js";
 import authRouter from "./routes/authRoutes.js";
-import adminBooksRouter from "./routes/adminBooksRoutes.js"; // ✅ Admin books (upload/delete)
-import adminAuthRouter from "./routes/adminAuthRoutes.js";   // ✅ Admin login routes
-import cartRoutes from "./routes/cartRoutes.js";             // 🛒 Add-to-Cart routes
-import paymentsRoutes from "./modules/payments/routes.js";   // 💳 Flutterwave Payments
-import { testSendGrid } from "./modules/notifications/testEmail.js"; // ✉️ Test SendGrid route
+import adminBooksRouter from "./routes/adminBooksRoutes.js";
+import adminAuthRouter from "./routes/adminAuthRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
+import paymentsRoutes from "./modules/payments/routes.js";
+import { testSendGrid } from "./modules/notifications/testEmail.js";
+import studentBooksRoutes from "./routes/studentBooks.js";
+import childAuthRoutes from "./routes/childAuthRoutes.js";
+import studentProxyRoutes from "./routes/studentProxyRoutes.js"; // ✅ Viewer proxy
+import cambridgeRoutes from "./routes/cambridgeRoutes.js"; // ✅ Cambridge validation routes
 
+/* -------------------------------------------------------------------------- */
+/* ✅ ENV + APP INIT */
+/* -------------------------------------------------------------------------- */
 dotenv.config();
-
 const app = express();
 
 /* -------------------------------------------------------------------------- */
@@ -36,27 +42,21 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/**
- * 1️⃣ Primary backend uploads folder
- */
+// 1️⃣ Primary backend uploads folder
 const backendUploadsPath = path.join(process.cwd(), "uploads");
 if (fs.existsSync(backendUploadsPath)) {
   console.log("🗂️ Serving backend uploads from:", backendUploadsPath);
   app.use(
     "/uploads",
     express.static(backendUploadsPath, {
-      setHeaders: (res) => {
-        res.setHeader("Access-Control-Allow-Origin", "*");
-      },
+      setHeaders: (res) => res.setHeader("Access-Control-Allow-Origin", "*"),
     })
   );
 } else {
   console.warn("⚠️ Backend uploads folder not found:", backendUploadsPath);
 }
 
-/**
- * 2️⃣ Also serve images stored in frontend/public/uploads
- */
+// 2️⃣ Also serve frontend/public/uploads
 const frontendUploadsPath = path.join(__dirname, "../frontend/public/uploads");
 if (fs.existsSync(frontendUploadsPath)) {
   console.log("🖼️ Serving uploaded book covers from:", frontendUploadsPath);
@@ -64,55 +64,40 @@ if (fs.existsSync(frontendUploadsPath)) {
     "/uploads",
     express.static(frontendUploadsPath, {
       fallthrough: true,
-      setHeaders: (res) => {
-        res.setHeader("Access-Control-Allow-Origin", "*");
-      },
+      setHeaders: (res) => res.setHeader("Access-Control-Allow-Origin", "*"),
     })
   );
 } else {
   console.warn("⚠️ frontend/public/uploads not found:", frontendUploadsPath);
 }
 
-/**
- * 3️⃣ Legacy compatibility — backend/uploads_legacy path
- */
+// 3️⃣ Legacy path
 const legacyUploadsPath = path.join(__dirname, "uploads");
 if (fs.existsSync(legacyUploadsPath)) {
   app.use("/uploads_legacy", express.static(legacyUploadsPath));
 }
 
-/**
- * 4️⃣ Serve high-resolution local images from D: drive
- */
+// 4️⃣ High-res covers (local)
 const coversPath = path.normalize("D:/BBA Coursebook Images/highres");
-
 if (fs.existsSync(coversPath)) {
   console.log("🖼️ Serving high-res covers from:", coversPath);
-
   app.use(
     "/covers_highres",
     express.static(coversPath, {
       fallthrough: true,
-      setHeaders: (res) => {
-        res.setHeader("Access-Control-Allow-Origin", "*");
-      },
+      setHeaders: (res) => res.setHeader("Access-Control-Allow-Origin", "*"),
     })
   );
 
   app.get("/covers_highres/:category/:isbn", (req, res) => {
     const { category, isbn } = req.params;
-    const decodedCategory = decodeURIComponent(category);
-    const folder = path.join(coversPath, decodedCategory);
-
-    const jpgPath = path.join(folder, `${isbn}.jpg`);
-    const jpegPath = path.join(folder, `${isbn}.jpeg`);
-    const pngPath = path.join(folder, `${isbn}.png`);
-
-    if (fs.existsSync(jpgPath)) return res.sendFile(jpgPath);
-    if (fs.existsSync(jpegPath)) return res.sendFile(jpegPath);
-    if (fs.existsSync(pngPath)) return res.sendFile(pngPath);
-
-    console.warn("⚠️ Image not found for:", isbn, "in", decodedCategory);
+    const folder = path.join(coversPath, decodeURIComponent(category));
+    const extensions = [".jpg", ".jpeg", ".png"];
+    for (const ext of extensions) {
+      const filePath = path.join(folder, `${isbn}${ext}`);
+      if (fs.existsSync(filePath)) return res.sendFile(filePath);
+    }
+    console.warn("⚠️ Image not found for:", isbn, "in", category);
     res.status(404).send("Image not found");
   });
 } else {
@@ -124,31 +109,43 @@ if (fs.existsSync(coversPath)) {
 /* -------------------------------------------------------------------------- */
 app.get("/", (req, res) => res.send("📚 BBA Backend API is running"));
 
-// 📘 Main book routes (public)
+// 📘 Main book routes
 app.use("/api/books", booksRouter);
 
-// 🔐 Parent authentication routes
+// 🔐 Parent authentication
 app.use("/api/auth", authRouter);
 
-// 🔑 Admin authentication route
+// 🔑 Admin authentication
 app.use("/api/admin/auth", adminAuthRouter);
 
-// 🧩 Admin-only book management routes (upload + delete)
+// 🧩 Admin book management
 app.use("/api/admin/books", adminBooksRouter);
 
-// 🛒 Cart routes (new)
+// 🛒 Cart
 app.use("/api/cart", cartRoutes);
 
-// 💳 Payments (Flutterwave Inline & Verification)
+// 💳 Payments
 app.use("/api/payments", paymentsRoutes);
 
-// ✉️ SendGrid test route — only in non-production
+// 👦 Child authentication (login)
+app.use("/api/child/auth", childAuthRoutes);
+
+// 🎓 Student books (access codes, list)
+app.use("/api/student/books", studentBooksRoutes);
+
+// 🌍 Book viewer proxy (Cambridge GO or others)
+app.use("/api/student/books", studentProxyRoutes);
+
+// 🏫 Cambridge validation API (access code → provider URL)
+app.use("/api/cambridge", cambridgeRoutes);
+
+// ✉️ Test email (non-production only)
 if (process.env.NODE_ENV !== "production") {
   app.get("/api/test-email", testSendGrid);
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🧰 Debug route — check visible files in one category */
+/* 🧰 Debug route */
 /* -------------------------------------------------------------------------- */
 app.get("/api/debug/covers", (req, res) => {
   const folder = path.join(coversPath, "Upper Secondary");
@@ -174,7 +171,5 @@ pool
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
-  console.log(
-    `🌐 Uploaded covers accessible at: http://localhost:${PORT}/uploads/filename.jpg`
-  );
+  console.log(`🌐 Uploaded covers: http://localhost:${PORT}/uploads/filename.jpg`);
 });

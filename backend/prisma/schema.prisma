@@ -7,17 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/* -------------------------------------------------------------------------- */
+/* 🧑‍💼 EXISTING USER + ROLE MODELS */
+/* -------------------------------------------------------------------------- */
 model User {
-  id          Int      @id @default(autoincrement())
-  name        String
-  email       String   @unique
-  password    String
-  role        Role     @default(PARENT)
-  trialStartDate      DateTime?
-  trialEndDate        DateTime?
-  subscriptionStatus  String? @default("trial")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 Int       @id @default(autoincrement())
+  name               String
+  email              String    @unique
+  password           String
+  role               Role      @default(PARENT)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  subscriptionStatus String?   @default("trial")
+  trialEndDate       DateTime?
+  trialStartDate     DateTime?
 }
 
 enum Role {
@@ -27,16 +30,124 @@ enum Role {
   ADMIN
 }
 
-model Book {
-  id         Int      @id @default(autoincrement())
-  title      String
-  author     String?
-  subject    String?
-  code       String?
-  edition    String?
-  isbn       String?  @unique
-  markup     Float?   @default(0)
-  price      Float?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+/* -------------------------------------------------------------------------- */
+/* 📚 EXISTING BOOKS & RELATED MODELS */
+/* -------------------------------------------------------------------------- */
+model book_details {
+  id         Int       @id @default(autoincrement())
+  isbn       String?   @unique(map: "book_details_isbn_unique")
+  overview   String?
+  features   String[]
+  contents   String[]
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  books      books?    @relation(fields: [isbn], references: [isbn], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model books {
+  id                 Int              @id(map: "Book_pkey") @default(autoincrement())
+  title              String
+  authors            String?
+  subject            String?
+  code               String?
+  edition            String?
+  isbn               String?          @unique(map: "Book_isbn_key")
+  markup             Float?           @default(0)
+  price              Float?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime?
+  cover_url          String?
+  category           String?
+  year               String?
+  type               String?
+  price_gbp          Decimal?         @db.Decimal
+  price_ugx          Decimal?         @db.Decimal
+  level              String?
+  published_date     DateTime?        @db.Date
+  format             String?
+  has_digital_access Boolean?         @default(true)
+  publisher          String?          @default("Cambridge University Press")
+  grade_year         String?          @db.VarChar(20)
+  category_id        Int?
+  author             String?
+  book_details       book_details?
+  category_lookup    category_lookup? @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cart_items         cart_items[]
+
+  @@index([isbn], map: "idx_books_isbn")
+}
+
+model cart_items {
+  id        Int       @id @default(autoincrement())
+  user_id   Int
+  book_isbn String    @db.VarChar(20)
+  quantity  Int?      @default(1)
+  added_at  DateTime? @default(now()) @db.Timestamp(6)
+  books     books     @relation(fields: [book_isbn], references: [isbn], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model category_lookup {
+  id            Int     @id @default(autoincrement())
+  category_name String  @unique @db.VarChar(100)
+  books         books[]
+}
+
+model orders {
+  id             Int       @id @default(autoincrement())
+  parent_name    String
+  parent_email   String
+  total_ugx      Int
+  payment_method String
+  markup_ugx     Int
+  mallory_share  Int
+  items_json     String
+  status         String?   @default("PENDING_PAYMENT")
+  tx_ref         String?   @unique
+  payment_link   String?
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model parents {
+  id               Int       @id @default(autoincrement())
+  name             String
+  email            String    @unique
+  phone            String?
+  password_hash    String
+  trial_start_date DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  trial_end_date   DateTime? @default(dbgenerated("(CURRENT_DATE + '7 days'::interval)")) @db.Date
+  is_trial_used    Boolean?  @default(false)
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/* -------------------------------------------------------------------------- */
+/* 👨‍👩‍👧 NEW CHILD & ASSIGNMENT MODELS */
+/* -------------------------------------------------------------------------- */
+model ChildUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  status       String?  @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  assignments  ChildAssignment[]
+}
+
+model ChildAssignment {
+  id           String      @id @default(cuid())
+  childId      String
+  child        ChildUser   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  subject      String
+  accessCode   String
+  providerUrl  String
+  status       AssignmentStatus @default(ACTIVE)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
 }
