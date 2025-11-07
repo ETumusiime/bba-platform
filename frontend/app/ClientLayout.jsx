@@ -1,26 +1,22 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import PublicNavbar from "../components/PublicNavbar"; // ✅ use public navbar instead of admin one
+import PublicNavbar from "../components/PublicNavbar";
 
 export default function ClientLayout({ children }) {
   const pathname = usePathname();
 
-  // ✅ Hide Navbar only on login and registration pages
-  const hideNavbar =
-    pathname === "/student/login" ||
-    pathname === "/parent/login" ||
-    pathname.startsWith("/register");
+  // ✅ Only show PublicNavbar on homepage and info pages
+  const isPublic =
+    pathname === "/" ||
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/contact") ||
+    pathname.startsWith("/faq");
 
   return (
     <>
-      {/* ✅ Show Public Navbar everywhere except auth/register pages */}
-      {!hideNavbar && <PublicNavbar />}
-
-      {/* ✅ Unified main wrapper for consistent spacing */}
-      <main className="min-h-screen flex flex-col">
-        {children}
-      </main>
+      {isPublic && <PublicNavbar />}
+      <main className="min-h-screen flex flex-col">{children}</main>
     </>
   );
 }

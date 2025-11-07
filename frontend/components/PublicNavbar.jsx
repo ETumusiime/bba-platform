@@ -9,6 +9,7 @@ export default function PublicNavbar() {
   return (
     <header className="w-full bg-white shadow-sm fixed top-0 z-50">
       <nav className="max-w-7xl mx-auto flex justify-between items-center px-6 py-4">
+        {/* 🏫 Logo / Home */}
         <h1
           className="text-2xl sm:text-3xl font-bold text-indigo-700 cursor-pointer"
           onClick={() => router.push("/")}
@@ -16,8 +17,9 @@ export default function PublicNavbar() {
           Bethel Bridge Academy
         </h1>
 
+        {/* 🔗 Navigation Links */}
         <div className="hidden sm:flex gap-4 items-center">
-          {/* ✅ Student Login */}
+          {/* ✅ Student Login (opens working student portal) */}
           <button
             onClick={() => router.push("/student/login")}
             className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow"
@@ -25,7 +27,7 @@ export default function PublicNavbar() {
             🧑‍🎓 Student Login
           </button>
 
-          {/* ✅ Parent Login */}
+          {/* ✅ Parent Login (opens working parent portal) */}
           <button
             onClick={() => router.push("/parent/login")}
             className="px-4 py-2 rounded-md border border-indigo-600 text-indigo-600 hover:bg-indigo-50 text-sm font-medium"
