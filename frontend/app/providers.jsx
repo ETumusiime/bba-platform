@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { CartProvider } from "@/context/CartContext";
+import { CartProvider } from "../components/CartProvider";
 
 export function GlobalProviders({ children }) {
   console.log("🛒 CartProvider mounted globally via GlobalProviders");
