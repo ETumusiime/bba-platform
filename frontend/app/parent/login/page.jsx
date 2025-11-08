@@ -20,7 +20,9 @@ export default function ParentLoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const API = process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:5000";
+
+      const res = await fetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -36,9 +38,9 @@ export default function ParentLoginPage() {
       localStorage.setItem("bba_parent_token", data.token);
       document.cookie = `bba_parent_token=${data.token}; path=/; max-age=7200; SameSite=Lax;`;
 
+      console.log("🧩 Saved parent token snippet:", data.token.slice(0, 30) + "..." + data.token.slice(-30));
       toast.success("✅ Login successful!");
 
-      // Redirect to `next` param if available, else dashboard
       const next = params.get("next") || "/dashboard";
       router.replace(next);
     } catch (err) {

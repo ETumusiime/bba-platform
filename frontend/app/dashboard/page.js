@@ -140,7 +140,22 @@ export default function ParentDashboard() {
         openSection={openSection}
         toggleSection={toggleSection}
       >
-        <DashboardCard title="Manage Children" icon="👨‍👩‍👧" onClick={comingSoon} />
+        {/* ✅ Updated Section */}
+        <DashboardCard
+          title="Manage Students"
+          icon="👨‍👩‍🎓"
+          onClick={() => router.push("/parent/students")}
+        />
+        <DashboardCard
+          title="Register Student"
+          icon="🆕"
+          onClick={() => router.push("/parent/students/new")}
+        />
+        <DashboardCard
+          title="Student Access Codes"
+          icon="🔑"
+          onClick={comingSoon}
+        />
         <DashboardCard title="My Orders" icon="🛍️" onClick={comingSoon} />
         <DashboardCard title="Subscription & Billing" icon="💳" onClick={comingSoon} />
       </Accordion>

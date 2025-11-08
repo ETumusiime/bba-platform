@@ -1,9 +1,18 @@
+// backend/routes/authRoutes.js
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../db.js";
 
 const router = express.Router();
+
+// Debug: verify the loaded secret in dev only
+if (process.env.NODE_ENV !== "production") {
+  console.log("🔑 Auth route loaded JWT_SECRET =", process.env.JWT_SECRET);
+}
 
 /* -------------------------------------------------------------------------- */
 /* ✅ REGISTER A NEW PARENT (no auto login)                                   */
@@ -16,21 +25,16 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Check if email already exists
     const check = await pool.query("SELECT id FROM parents WHERE email=$1", [email]);
     if (check.rows.length > 0) {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    // Hash password securely
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Set 7-day free trial period
     const trialStart = new Date();
     const trialEnd = new Date(trialStart);
     trialEnd.setDate(trialStart.getDate() + 7);
 
-    // Insert parent record
     const insertQuery = `
       INSERT INTO parents (name, email, phone, password_hash, trial_start_date, trial_end_date, is_trial_used)
       VALUES ($1, $2, $3, $4, $5, $6, false)
@@ -48,7 +52,6 @@ router.post("/register", async (req, res) => {
 
     const parent = rows[0];
 
-    // ✅ Return message only (no token)
     res.json({
       success: true,
       message: "✅ Registration successful! Please log in to continue.",
@@ -61,7 +64,7 @@ router.post("/register", async (req, res) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* ✅ LOGIN PARENT                                                            */
+/* ✅ LOGIN PARENT (uses .env secret only, includes role)                     */
 /* -------------------------------------------------------------------------- */
 router.post("/login", async (req, res) => {
   try {
@@ -71,26 +74,32 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Missing credentials" });
     }
 
-    // Fetch parent by email
     const { rows } = await pool.query("SELECT * FROM parents WHERE email=$1", [email]);
     if (rows.length === 0) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const parent = rows[0];
-
-    // Compare password
     const isValid = await bcrypt.compare(password, parent.password_hash);
     if (!isValid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Create JWT token
+    // 🔍 Debug — verify signing secret
+    console.log("🧾 Signing parent token using secret =", process.env.JWT_SECRET);
+
     const token = jwt.sign(
-      { id: parent.id, email: parent.email },
-      process.env.JWT_SECRET,
+      { id: parent.id, email: parent.email, role: "PARENT" },
+      process.env.JWT_SECRET, // ✅ only .env key, no fallback
       { expiresIn: "7d" }
     );
+
+    console.log("🎫 Issued parent token (first 30 chars):", token.slice(0, 30) + "...");
+    console.log("🎫 Issued parent token with role:", {
+      id: parent.id,
+      email: parent.email,
+      role: "PARENT",
+    });
 
     res.json({
       success: true,
@@ -130,8 +139,17 @@ router.get("/profile", async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
+    console.error("❌ Profile token verification failed:", err.message);
     res.status(401).json({ message: "Invalid or expired token" });
   }
+});
+
+/* -------------------------------------------------------------------------- */
+/* 🧪 Debug route (for testing connectivity)                                  */
+/* -------------------------------------------------------------------------- */
+router.get("/test", (req, res) => {
+  console.log("✅ /api/auth/test hit successfully");
+  res.send("Auth route working ✅");
 });
 
 export default router;
