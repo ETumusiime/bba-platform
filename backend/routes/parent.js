@@ -11,28 +11,24 @@ import { requireParentAuth } from "../middleware/authMiddleware.js";
 import { sendChildWelcomeEmail } from "../modules/notifications/sendChildWelcomeEmail.js";
 
 const router = express.Router();
-
-// Small helper to safely clean values
 const clean = (v) => (v ?? "").toString().trim();
 
-/**
- * @route   POST /api/parent/children
- * @desc    Register a new student (child) under the logged-in parent
- * @access  Private (Parent)
- */
+/* -------------------------------------------------------------------------- */
+/* 🧠 Register a new student                                                  */
+/* -------------------------------------------------------------------------- */
 router.post("/children", requireParentAuth, async (req, res) => {
   const {
     firstName,
     lastName,
     email,
-    dob, // YYYY-MM-DD
-    schoolYear, // 1–13
-    whatsapp_phone, // optional
-    address = {}, // { country, city, neighbourhood }
+    dob,
+    schoolYear,
+    whatsapp_phone,
+    address = {},
+    password,
   } = req.body || {};
 
-  // ---------------- Validation ----------------
-  if (!firstName || !lastName || !email || !dob || !schoolYear) {
+  if (!firstName || !lastName || !email || !dob || !schoolYear || !password) {
     return res.status(422).json({ error: "Missing required fields." });
   }
 
@@ -55,7 +51,7 @@ router.post("/children", requireParentAuth, async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // ---------------- Address ----------------
+    // Address
     let addressId;
     const existingAddress = await client.query(
       `SELECT id FROM addresses WHERE country=$1 AND city=$2 AND neighbourhood=$3 LIMIT 1`,
@@ -73,11 +69,10 @@ router.post("/children", requireParentAuth, async (req, res) => {
       addressId = newAddress.rows[0].id;
     }
 
-    // ---------------- Generate Password ----------------
-    const tempPassword = crypto.randomBytes(9).toString("base64url"); // e.g., Ab3x_29lPQ
-    const passwordHash = await bcrypt.hash(tempPassword, 12);
+    // Password hash
+    const passwordHash = await bcrypt.hash(password, 12);
 
-    // ---------------- Create Child ----------------
+    // Create child
     let child;
     try {
       const insertChild = await client.query(
@@ -102,7 +97,6 @@ router.post("/children", requireParentAuth, async (req, res) => {
       child = insertChild.rows[0];
     } catch (e) {
       if (e.code === "23505") {
-        // unique_violation (email already exists)
         throw Object.assign(new Error("A student with this email already exists."), {
           status: 409,
         });
@@ -110,12 +104,10 @@ router.post("/children", requireParentAuth, async (req, res) => {
       throw e;
     }
 
-    // ---------------- Cohort ----------------
+    // Cohort linking
     let cohortId;
     const existingCohort = await client.query(
-      `SELECT id FROM cohorts
-       WHERE country=$1 AND city=$2 AND neighbourhood=$3 AND school_year=$4
-       LIMIT 1`,
+      `SELECT id FROM cohorts WHERE country=$1 AND city=$2 AND neighbourhood=$3 AND school_year=$4 LIMIT 1`,
       [country, city, neighbourhood, year]
     );
 
@@ -131,53 +123,135 @@ router.post("/children", requireParentAuth, async (req, res) => {
       cohortId = newCohort.rows[0].id;
     }
 
-    // ---------------- Cohort Membership ----------------
     await client.query(
       `INSERT INTO cohort_members (cohort_id, child_id, created_at)
-       VALUES ($1,$2,NOW())
-       ON CONFLICT DO NOTHING`,
+       VALUES ($1,$2,NOW()) ON CONFLICT DO NOTHING`,
       [cohortId, child.id]
     );
 
     await client.query("COMMIT");
 
-    // ---------------- Send Email ----------------
+    // Email notification
     const studentLoginUrl =
       `${process.env.PUBLIC_WEB_ORIGIN || "http://localhost:3000"}/student/login`;
 
     sendChildWelcomeEmail({
-      parentEmail: req.user.email, // from JWT
+      parentEmail: req.user.email,
       childEmail: child.email,
       childName: `${child.first_name} ${child.last_name}`,
       username: child.email,
-      tempPassword,
+      tempPassword: password,
       studentLoginUrl,
     }).catch((e) => console.error("sendChildWelcomeEmail error:", e));
 
-    // ---------------- Success Response ----------------
-    return res.json({
+    res.json({
       success: true,
-      child: {
-        id: child.id,
-        firstName: child.first_name,
-        lastName: child.last_name,
-        email: child.email,
-        schoolYear: child.school_year,
-      },
-      credentials: {
-        username: child.email,
-        tempPassword,
-      },
+      child,
+      credentials: { username: child.email, tempPassword: password },
     });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("❌ Error creating student:", err);
-    const status = err.status || 500;
-    res.status(status).json({
-      error: err.message || "Internal Server Error",
-    });
+    res.status(err.status || 500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* 📋 GET /api/parent/children — list all students                            */
+/* -------------------------------------------------------------------------- */
+router.get("/children", requireParentAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, first_name, last_name, email, school_year, dob, whatsapp_phone
+       FROM children WHERE parent_id=$1 ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ success: true, children: rows });
+  } catch (err) {
+    console.error("❌ Fetch children failed:", err);
+    res.status(500).json({ error: "Failed to load students" });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* ✏️ PATCH /api/parent/children/:id — update student info                   */
+/* -------------------------------------------------------------------------- */
+router.patch("/children/:id", requireParentAuth, async (req, res) => {
+  const { first_name, last_name, school_year } = req.body || {};
+  const childId = req.params.id;
+
+  try {
+    const result = await pool.query(
+      `UPDATE children
+       SET first_name=COALESCE($1, first_name),
+           last_name=COALESCE($2, last_name),
+           school_year=COALESCE($3, school_year)
+       WHERE id=$4 AND parent_id=$5
+       RETURNING id, first_name, last_name, email, school_year`,
+      [first_name, last_name, school_year, childId, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Student not found or not yours." });
+    }
+
+    res.json({ success: true, student: result.rows[0] });
+  } catch (err) {
+    console.error("❌ Update student failed:", err);
+    res.status(500).json({ error: "Update failed" });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* 🔑 POST /api/parent/children/:id/reset-password                           */
+/* -------------------------------------------------------------------------- */
+router.post("/children/:id/reset-password", requireParentAuth, async (req, res) => {
+  const { password } = req.body;
+  const childId = req.params.id;
+
+  if (!password || password.length < 8) {
+    return res.status(422).json({ error: "Password must be at least 8 characters." });
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 12);
+    const result = await pool.query(
+      `UPDATE children
+       SET password_hash=$1, must_change_password=TRUE
+       WHERE id=$2 AND parent_id=$3
+       RETURNING email, first_name, last_name`,
+      [passwordHash, childId, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Student not found or not yours." });
+    }
+
+    res.json({ success: true, message: "Password reset successful" });
+  } catch (err) {
+    console.error("❌ Password reset failed:", err);
+    res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* 🗑️ POST /api/parent/children/:id/request-delete                           */
+/* -------------------------------------------------------------------------- */
+router.post("/children/:id/request-delete", requireParentAuth, async (req, res) => {
+  const childId = req.params.id;
+
+  try {
+    // For now, just log or mark for review — later this can email admin
+    console.log(`🗑️ Parent ${req.user.email} requested deletion for child ID: ${childId}`);
+    res.json({
+      success: true,
+      message: "Delete request logged. Admin will review this account.",
+    });
+  } catch (err) {
+    console.error("❌ Delete request failed:", err);
+    res.status(500).json({ error: "Failed to request delete" });
   }
 });
 

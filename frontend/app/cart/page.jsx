@@ -1,5 +1,5 @@
 "use client";
-import { useCart } from "@/context/CartContext";
+import { useCart } from "../../context/CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";

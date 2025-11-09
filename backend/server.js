@@ -20,10 +20,15 @@ import cartRoutes from "./routes/cartRoutes.js";
 import paymentsRoutes from "./modules/payments/routes.js";
 import { testSendGrid } from "./modules/notifications/testEmail.js";
 import studentBooksRoutes from "./routes/studentBooks.js";
-import childAuthRoutes from "./routes/childAuthRoutes.js";
+// ❌ Disabled Prisma-based child routes
+// import childAuthRoutes from "./routes/childAuthRoutes.js";
 import studentProxyRoutes from "./routes/studentProxyRoutes.js";
 import cambridgeRoutes from "./routes/cambridgeRoutes.js";
-import parentRouter from "./routes/parent.js"; // ✅ Parent dashboard + student registration
+
+// ✅ Parent & Student Management Routes
+import parentRouter from "./routes/parentRoutes.js"; // Parent actions (view, edit, delete, reset password)
+import parentChildrenRoutes from "./routes/parentChildrenRoutes.js"; // Student creation (authoritative)
+import studentAuthRoutes from "./routes/studentAuthRoutes.js"; // Student login (pg.js-based)
 
 /* -------------------------------------------------------------------------- */
 /* ✅ ENV + APP INIT */
@@ -114,7 +119,7 @@ app.get("/", (req, res) => res.send("📚 BBA Backend API is running"));
 // 📘 Main Book Routes
 app.use("/api/books", booksRouter);
 
-// 🔐 Parent authentication (✅ newly fixed mount)
+// 🔐 Parent authentication
 app.use("/api/auth", authRouter);
 
 // 🔑 Admin authentication
@@ -127,18 +132,21 @@ app.use("/api/admin/books", adminBooksRouter);
 app.use("/api/cart", cartRoutes);
 app.use("/api/payments", paymentsRoutes);
 
-// 👦 Child authentication + student routes
-app.use("/api/child/auth", childAuthRoutes);
+// 👨‍👩‍👧 Parent Routes (view/edit/delete children)
+app.use("/api/parent", parentRouter);
+
+// 👩‍🎓 Parent-Child Management (register new student)
+app.use("/api/parent/children", parentChildrenRoutes);
+
+// 👦 Student authentication & resources
+app.use("/api/student", studentAuthRoutes);
 app.use("/api/student/books", studentBooksRoutes);
 app.use("/api/student/books", studentProxyRoutes);
 
 // 🏫 Cambridge Validation
 app.use("/api/cambridge", cambridgeRoutes);
 
-// 👨‍👩‍👧 Parent-specific routes (Manage Students, Register Student, etc.)
-app.use("/api/parent", parentRouter);
-
-// ✉️ Test Email
+// ✉️ Test Email (development only)
 if (process.env.NODE_ENV !== "production") {
   app.get("/api/test-email", testSendGrid);
 }
@@ -160,9 +168,7 @@ app.get("/api/debug/covers", (req, res) => {
 pool
   .query("SELECT NOW()")
   .then(() => console.log("✅ Connected to PostgreSQL"))
-  .catch((err) =>
-    console.error("❌ PostgreSQL connection failed:", err.message)
-  );
+  .catch((err) => console.error("❌ PostgreSQL connection failed:", err.message));
 
 /* -------------------------------------------------------------------------- */
 /* ✅ START SERVER */

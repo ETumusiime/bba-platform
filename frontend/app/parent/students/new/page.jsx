@@ -14,6 +14,8 @@ export default function RegisterStudentPage() {
   const [fullName, setFullName] = useState("");
   const [dob, setDob] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [schoolYear, setSchoolYear] = useState(1);
   const [whatsapp, setWhatsapp] = useState("");
 
@@ -36,8 +38,17 @@ export default function RegisterStudentPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    if (!fullName || !dob || !email || !city || !neighbourhood) {
+    if (!fullName || !dob || !email || !city || !neighbourhood || !password) {
       toast.error("Please complete all required fields");
+      return;
+    }
+
+    // ✅ Password validation (international standard)
+    const strongPassword = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!strongPassword.test(password)) {
+      toast.error(
+        "Password must be at least 8 characters long and include both letters and numbers"
+      );
       return;
     }
 
@@ -47,20 +58,13 @@ export default function RegisterStudentPage() {
     try {
       const token = localStorage.getItem("bba_parent_token");
 
-      // 🧩 Debug token preview before sending
       if (!token) {
         console.error("🚫 No parent token found in localStorage");
         toast.error("Parent not authenticated. Please log in again.");
         router.push("/login");
         return;
-      } else {
-        console.log(
-          "🧩 Frontend token preview:",
-          token.slice(0, 30) + "..." + token.slice(-30)
-        );
       }
 
-      // Always point to backend (default localhost:5000 or env var)
       const API = process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:5000";
 
       const res = await fetch(`${API}/api/parent/children`, {
@@ -77,10 +81,10 @@ export default function RegisterStudentPage() {
           schoolYear: Number(schoolYear),
           whatsapp_phone: whatsapp || undefined,
           address: { country, city, neighbourhood },
+          password, // ✅ include password
         }),
       });
 
-      // If backend failed or returned HTML, handle gracefully
       const text = await res.text();
       let data;
       try {
@@ -95,6 +99,18 @@ export default function RegisterStudentPage() {
         throw new Error(data.error || "Failed to create student");
       }
 
+      // ✅ CLEAR FORM FIELDS after success
+      setFullName("");
+      setDob("");
+      setEmail("");
+      setPassword("");
+      setSchoolYear(1);
+      setWhatsapp("");
+      setCountry("Uganda");
+      setCity("");
+      setNeighbourhood("");
+
+      // ✅ Continue as normal
       setShowCreds(data.credentials);
       toast.success("✅ Student account created successfully!");
     } catch (err) {
@@ -177,6 +193,31 @@ export default function RegisterStudentPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* ✅ Password field with toggle */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1">Password *</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border rounded-md px-3 py-2"
+                placeholder="Enter student password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2 text-sm text-blue-600"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Must be at least 8 characters, including letters and numbers.
+            </p>
           </div>
 
           <div>
@@ -266,39 +307,65 @@ export default function RegisterStudentPage() {
         </div>
       </form>
 
-      {/* Success Modal */}
+      {/* ✅ Enhanced Success Modal */}
       {showCreds && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-3">Student Credentials</h2>
-            <div className="space-y-2 text-sm">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md text-center">
+            <h2 className="text-xl font-semibold mb-2 text-green-700">
+              🎉 Student Account Created!
+            </h2>
+            <p className="text-gray-600 mb-4">
+              The account for <strong>{showCreds.username}</strong> has been created successfully.
+            </p>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-4 text-sm">
               <div>
-                <span className="font-medium">Username:</span>{" "}
-                {showCreds.username}
+                <strong>Username:</strong> {showCreds.username}
               </div>
               <div>
-                <span className="font-medium">Temporary Password:</span>{" "}
-                {showCreds.tempPassword}
+                <strong>Password:</strong> {showCreds.tempPassword}
               </div>
-              <p className="text-gray-600">
-                Shown once. Please save these now.
+              <p className="text-xs text-gray-500 mt-1">
+                Shown once — please save these now.
               </p>
             </div>
-            <div className="mt-4 flex gap-2">
+
+            <div className="flex flex-col gap-2">
+              {/* ✅ Pass student email to login page */}
               <a
-                href="/student/login"
-                className="px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                href={`/student/login?email=${encodeURIComponent(showCreds.username)}`}
+                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
               >
                 Open Student Login
               </a>
+
               <button
                 onClick={() => {
                   setShowCreds(null);
-                  router.push("/parent/students");
+                  setFullName("");
+                  setDob("");
+                  setEmail("");
+                  setPassword("");
+                  toast.success("Ready to register another student!");
                 }}
-                className="px-3 py-2 rounded-md border hover:bg-gray-100"
+                className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700"
               >
-                Done
+                Register Another Student
+              </button>
+
+              {/* ✅ Corrected dashboard link */}
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="px-4 py-2 rounded-md border hover:bg-gray-100"
+              >
+                Back to Dashboard
+              </button>
+
+              <button
+                onClick={() => router.push("/parent/students")}
+                className="px-4 py-2 rounded-md border hover:bg-gray-100"
+              >
+                View All Students
               </button>
             </div>
           </div>

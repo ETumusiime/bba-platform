@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { useCart } from "@/context/CartContext";
+import { useCart } from "../../context/CartContext";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 

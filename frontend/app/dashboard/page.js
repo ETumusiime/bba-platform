@@ -15,7 +15,7 @@ export default function ParentDashboard() {
   const [openSection, setOpenSection] = useState("academics");
 
   /* -------------------------------------------------------------------------- */
-  /* 🔐  Quick client-side guard — if no cookie, redirect to login              */
+  /* 🔐 Quick client-side guard — if no cookie, redirect to login              */
   /* -------------------------------------------------------------------------- */
   useEffect(() => {
     const hasParentCookie =
@@ -24,7 +24,7 @@ export default function ParentDashboard() {
 
     if (!hasParentCookie) {
       console.warn("🚫 No parent token found; redirecting to login …");
-      router.replace("/login?next=/dashboard"); // ✅ updated from /auth/login
+      router.replace("/login?next=/dashboard");
     } else {
       setReady(true);
     }
@@ -39,13 +39,13 @@ export default function ParentDashboard() {
   }
 
   /* -------------------------------------------------------------------------- */
-  /* 🧭  Section toggler                                                        */
+  /* 🧭 Section toggler                                                        */
   /* -------------------------------------------------------------------------- */
   const toggleSection = (section) =>
     setOpenSection(openSection === section ? "" : section);
 
   /* -------------------------------------------------------------------------- */
-  /* 🚀  Navigation + handlers                                                  */
+  /* 🚀 Navigation + handlers                                                  */
   /* -------------------------------------------------------------------------- */
   const goToBooks = () => router.push("/book-selection");
   const goToProfile = () => router.push("/profile");
@@ -55,14 +55,14 @@ export default function ParentDashboard() {
     document.cookie =
       "bba_parent_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     toast.success("👋 Logged out successfully");
-    router.replace("/login"); // ✅ updated from /auth/login
+    router.replace("/login");
   };
 
   const comingSoon = () =>
     toast("🚧 Coming Soon ✨", { icon: "⏳", duration: 2500 });
 
   /* -------------------------------------------------------------------------- */
-  /* 🎨  UI Rendering                                                           */
+  /* 🎨 UI Rendering                                                           */
   /* -------------------------------------------------------------------------- */
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-100 py-8 px-4 flex flex-col items-center">
@@ -140,10 +140,10 @@ export default function ParentDashboard() {
         openSection={openSection}
         toggleSection={toggleSection}
       >
-        {/* ✅ Updated Section */}
+        {/* ✅ Updated Section: Correct navigation links */}
         <DashboardCard
           title="Manage Students"
-          icon="👨‍👩‍🎓"
+          icon="👨‍🎓"
           onClick={() => router.push("/parent/students")}
         />
         <DashboardCard
@@ -157,7 +157,11 @@ export default function ParentDashboard() {
           onClick={comingSoon}
         />
         <DashboardCard title="My Orders" icon="🛍️" onClick={comingSoon} />
-        <DashboardCard title="Subscription & Billing" icon="💳" onClick={comingSoon} />
+        <DashboardCard
+          title="Subscription & Billing"
+          icon="💳"
+          onClick={comingSoon}
+        />
       </Accordion>
 
       {/* ========== PERSONAL SETTINGS ========== */}
@@ -216,7 +220,8 @@ function DashboardCard({ title, icon, onClick }) {
       onClick={onClick}
       className="cursor-pointer rounded-xl p-6 flex flex-col items-center justify-center
                  shadow-md hover:shadow-xl transition-all text-center
-                 bg-gradient-to-br from-white to-blue-50 border border-blue-100 hover:border-blue-300"
+                 bg-gradient-to-br from-white to-blue-50 border border-blue-100 hover:border-blue-300
+                 hover:-translate-y-1 duration-300"
     >
       <div className="text-4xl mb-3">{icon}</div>
       <h3 className="font-semibold text-blue-900 text-sm sm:text-base">{title}</h3>
