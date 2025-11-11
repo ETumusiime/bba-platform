@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 
-export default function ParentLoginPage() {
+/* -------------------------------------------------------------------------- */
+/* ✅ Inner Component Wrapped by Suspense                                     */
+/* -------------------------------------------------------------------------- */
+function ParentLoginContent() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -38,7 +41,11 @@ export default function ParentLoginPage() {
       localStorage.setItem("bba_parent_token", data.token);
       document.cookie = `bba_parent_token=${data.token}; path=/; max-age=7200; SameSite=Lax;`;
 
-      console.log("🧩 Saved parent token snippet:", data.token.slice(0, 30) + "..." + data.token.slice(-30));
+      console.log(
+        "🧩 Saved parent token snippet:",
+        data.token.slice(0, 30) + "..." + data.token.slice(-30)
+      );
+
       toast.success("✅ Login successful!");
 
       const next = params.get("next") || "/dashboard";
@@ -61,6 +68,7 @@ export default function ParentLoginPage() {
         <h1 className="text-2xl font-bold text-center text-indigo-700 mb-6">
           Parent Login
         </h1>
+
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <input
             type="email"
@@ -88,5 +96,16 @@ export default function ParentLoginPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* ✅ Export Main Page Wrapped in Suspense                                    */
+/* -------------------------------------------------------------------------- */
+export default function ParentLoginPage() {
+  return (
+    <Suspense fallback={<div>Loading login...</div>}>
+      <ParentLoginContent />
+    </Suspense>
   );
 }

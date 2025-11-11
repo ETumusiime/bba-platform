@@ -1,103 +1,65 @@
 ﻿"use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+
+import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { categoryMap } from "../../utils/categoryMap";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-export default function BookSelection() {
+/* -------------------------------------------------------------------------- */
+/* ✅ Inner Component Wrapped by Suspense                                     */
+/* -------------------------------------------------------------------------- */
+function BookSelectionContent() {
   const router = useRouter();
+  const params = useSearchParams();
+  const restoreYear = params.get("restore");
 
   const allYears = [
-    "Year 1","Year 2","Year 3","Year 4","Year 5","Year 6",
-    "Year 7","Year 8","Year 9","Year 10","Year 11","Year 12","Year 13",
+    "Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6",
+    "Year 7", "Year 8", "Year 9", "Year 10", "Year 11", "Year 12", "Year 13",
   ];
 
-  // Auto-derive Cambridge category from year
-  const categoryFromYear = (year) => {
-    if (["Year 1","Year 2","Year 3","Year 4","Year 5","Year 6"].includes(year))
-      return "Primary";
-    if (["Year 7","Year 8","Year 9"].includes(year))
-      return "Lower Secondary";
-    if (["Year 10","Year 11"].includes(year))
-      return "Upper Secondary";
-    if (["Year 12","Year 13"].includes(year))
-      return "Advanced";
-    return "Primary";
-  };
-
   const subjectsByYear = {
-    "Year 1": ["English","Mathematics","Science"],
-    "Year 2": ["English","Mathematics","Science"],
-    "Year 3": ["English","Mathematics","Science"],
-    "Year 4": ["English","Mathematics","Science"],
-    "Year 5": ["English","Mathematics","Science"],
-    "Year 6": ["English","Mathematics","Science"],
-    "Year 7": ["English","Mathematics","Biology","Chemistry","Physics"],
-    "Year 8": ["English","Mathematics","Biology","Chemistry","Physics"],
-    "Year 9": ["English","Mathematics","Biology","Chemistry","Physics"],
-    "Year 10": ["Mathematics","Physics","Chemistry","Biology","English","Computer Science","Enterprise"],
-    "Year 11": ["Mathematics","Physics","Chemistry","Biology","English","Computer Science","Enterprise","Global Perspectives & Research"],
-    "Year 12": ["Economics","Sociology","Geography","ICT"],
-    "Year 13": ["Economics","Sociology","Geography","ICT"],
+    "Year 1": ["English", "Mathematics", "Science"],
+    "Year 2": ["English", "Mathematics", "Science"],
+    "Year 3": ["English", "Mathematics", "Science"],
+    "Year 4": ["English", "Mathematics", "Science"],
+    "Year 5": ["English", "Mathematics", "Science"],
+    "Year 6": ["English", "Mathematics", "Science"],
+    "Year 7": ["English", "Mathematics", "Biology", "Chemistry", "Physics"],
+    "Year 8": ["English", "Mathematics", "Biology", "Chemistry", "Physics"],
+    "Year 9": ["English", "Mathematics", "Biology", "Chemistry", "Physics"],
+    "Year 10": ["Mathematics", "Physics", "Chemistry", "Biology", "English", "Computer Science", "Enterprise"],
+    "Year 11": ["Mathematics", "Physics", "Chemistry", "Biology", "English", "Computer Science", "Enterprise", "Global Perspectives & Research"],
+    "Year 12": ["Economics", "Sociology", "Geography", "ICT"],
+    "Year 13": ["Economics", "Sociology", "Geography", "ICT"],
   };
 
-  /* -------------------------------------------------------------------------- */
-  /* 🎯 STATE */
-  /* -------------------------------------------------------------------------- */
   const [selectedYear, setSelectedYear] = useState(null);
-  const [selectedSubject, setSelectedSubject] = useState(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /* -------------------------------------------------------------------------- */
-  /* 🧭 If user comes from "Back to Subjects", restore previous year automatically */
-  /* -------------------------------------------------------------------------- */
+  // 🔹 Auto-restore year if opened via ?restore=
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const restoreYear = params.get("restore");
     if (restoreYear) setSelectedYear(restoreYear);
-  }, []);
+  }, [restoreYear]);
 
-  /* -------------------------------------------------------------------------- */
-  /* ⚙️ HANDLERS */
-  /* -------------------------------------------------------------------------- */
-  const handleYear = (year) => {
-    setSelectedYear(year);
-    setSelectedSubject(null);
-  };
-
-  const handleSubject = (subject) => {
-    const derivedCategory = categoryFromYear(selectedYear);
-    const internalCategory = categoryMap[derivedCategory] || derivedCategory;
-
-    router.push(
-      `/books?category=${encodeURIComponent(internalCategory)}&year=${encodeURIComponent(
-        selectedYear
-      )}&subject=${encodeURIComponent(subject)}`
-    );
-  };
-
-  const resetYear = () => {
-    setSelectedYear(null);
-    setSelectedSubject(null);
-  };
+  // 🔹 Handlers
+  const handleYear = (year) => setSelectedYear(year);
+  const resetYear = () => setSelectedYear(null);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-
     setLoading(true);
     setError("");
-
     try {
       const mappedQuery = categoryMap[query] || query.replace(/^Cambridge\s+/i, "").trim();
       const res = await fetch(`${API}/api/books/search?q=${encodeURIComponent(mappedQuery)}`);
       if (!res.ok) throw new Error("Book not found");
-
       const data = await res.json();
-
       if (data.results && data.results.length > 0) {
         const found = data.results[0];
         window.open(`/books/${found.isbn}`, "_blank");
@@ -117,17 +79,14 @@ export default function BookSelection() {
     router.replace("/login");
   };
 
-  const goToDashboard = () => {
-    router.push("/dashboard");
-  };
+  const goToDashboard = () => router.push("/dashboard");
 
-  /* -------------------------------------------------------------------------- */
-  /* 🖼️ UI RENDERING */
-  /* -------------------------------------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /* ✅ Render Section                                                      */
+  /* ---------------------------------------------------------------------- */
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-6">
       <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg p-8 relative">
-
         {/* 🔹 TOP BUTTONS */}
         <div className="absolute top-4 right-4 flex gap-2">
           <button
@@ -190,22 +149,21 @@ export default function BookSelection() {
         )}
 
         {/* 🧭 SUBJECT SELECTION */}
-        {selectedYear && !selectedSubject && (
+        {selectedYear && (
           <>
             <h2 className="text-lg font-semibold mb-3 text-gray-700 text-center">
               {selectedYear} — Choose Subject
             </h2>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mt-6">
-              {(subjectsByYear[selectedYear] ||
-                ["Mathematics", "English", "Science"]).map((subject) => (
-                <button
+              {(subjectsByYear[selectedYear] || []).map((subject) => (
+                <Link
                   key={subject}
-                  onClick={() => handleSubject(subject)}
+                  href={`/books/byYear/${encodeURIComponent(selectedYear)}/${encodeURIComponent(subject)}`}
                   className="px-6 py-3 bg-white shadow-sm hover:shadow-lg rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 text-green-700 transition-all text-center"
                 >
                   {subject}
-                </button>
+                </Link>
               ))}
             </div>
 
@@ -224,4 +182,13 @@ export default function BookSelection() {
   );
 }
 
-
+/* -------------------------------------------------------------------------- */
+/* ✅ Export Main Page Wrapped in Suspense                                    */
+/* -------------------------------------------------------------------------- */
+export default function BookSelection() {
+  return (
+    <Suspense fallback={<div>Loading book selection...</div>}>
+      <BookSelectionContent />
+    </Suspense>
+  );
+}

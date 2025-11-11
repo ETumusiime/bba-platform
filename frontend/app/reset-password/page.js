@@ -1,13 +1,26 @@
 ﻿"use client";
+
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+/* -------------------------------------------------------------------------- */
+/* ✅ Secure Supabase Initialization (prevents build-time crash)              */
+/* -------------------------------------------------------------------------- */
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("❌ Missing Supabase environment variables. Check .env.local");
+}
+
+const supabase = createClient(supabaseUrl || "", supabaseAnonKey || "");
+
+/* -------------------------------------------------------------------------- */
+/* 🧩 Password Reset Page                                                    */
+/* -------------------------------------------------------------------------- */
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [newPassword, setNewPassword] = useState("");
@@ -17,20 +30,26 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [tokenChecked, setTokenChecked] = useState(false);
 
-  // Check that the user is visiting from a valid reset link
+  /* ------------------------------------------------------------------------ */
+  /* 🔐 Verify if user has a valid reset session                              */
+  /* ------------------------------------------------------------------------ */
   useEffect(() => {
     async function verifyToken() {
-      const { data, error } = await supabase.auth.getSession();
-      if (error || !data?.session) {
-        // No active session, meaning user clicked a fresh reset link
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) console.warn("Token verification warning:", error.message);
         setTokenChecked(true);
-      } else {
+      } catch (err) {
+        console.error("Token check failed:", err);
         setTokenChecked(true);
       }
     }
     verifyToken();
   }, []);
 
+  /* ------------------------------------------------------------------------ */
+  /* 💾 Handle password reset submission                                     */
+  /* ------------------------------------------------------------------------ */
   const handlePasswordReset = async (e) => {
     e.preventDefault();
     setError("");
@@ -42,18 +61,27 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setLoading(false);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
 
-    if (error) {
-      setError("Failed to reset password. Try again later.");
-    } else {
-      setMessage("Password updated successfully! Redirecting to login...");
+      setMessage("✅ Password updated successfully! Redirecting to login...");
       setTimeout(() => router.replace("/login"), 2000);
+    } catch (err) {
+      console.error("Password reset error:", err);
+      setError("Failed to reset password. Try again later.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!tokenChecked) return <p style={{ textAlign: "center", marginTop: "50px" }}>Validating link...</p>;
+  /* ------------------------------------------------------------------------ */
+  /* 🎨 Render Layout                                                        */
+  /* ------------------------------------------------------------------------ */
+  if (!tokenChecked)
+    return (
+      <p style={{ textAlign: "center", marginTop: "50px" }}>Validating link...</p>
+    );
 
   return (
     <div
@@ -78,7 +106,9 @@ export default function ResetPasswordPage() {
           textAlign: "center",
         }}
       >
-        <h2 style={{ marginBottom: "20px", color: "#333" }}>Reset Your Password</h2>
+        <h2 style={{ marginBottom: "20px", color: "#333" }}>
+          Reset Your Password
+        </h2>
         <form onSubmit={handlePasswordReset}>
           <input
             type="password"

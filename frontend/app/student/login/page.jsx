@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 
-export default function StudentLoginPage() {
+function StudentLoginContent() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -96,5 +96,13 @@ export default function StudentLoginPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function StudentLoginPage() {
+  return (
+    <Suspense fallback={<div>Loading login...</div>}>
+      <StudentLoginContent />
+    </Suspense>
   );
 }

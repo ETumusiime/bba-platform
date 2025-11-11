@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function BookViewerPage() {
+function BookViewerContent() {
   const params = useSearchParams();
   const router = useRouter();
   const ticket = params.get("ticket");
@@ -44,11 +44,20 @@ export default function BookViewerPage() {
       <div className="flex-1">
         <iframe
           title="Book Viewer"
-          src={proxyUrl} // this points to your backend proxy (e.g. Cambridge GO)
+          src={proxyUrl}
           sandbox="allow-scripts allow-same-origin allow-forms"
           style={{ width: "100%", height: "calc(100vh - 64px)", border: 0 }}
         />
       </div>
     </main>
+  );
+}
+
+export default function BookViewerPage() {
+  // ✅ Suspense boundary wraps all useSearchParams() usage
+  return (
+    <Suspense fallback={<div className="p-6 text-gray-600">Loading viewer...</div>}>
+      <BookViewerContent />
+    </Suspense>
   );
 }
