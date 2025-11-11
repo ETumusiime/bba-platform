@@ -70,7 +70,7 @@ export default function SubjectBooksPage() {
         </h1>
         <p className="text-gray-600">{error}</p>
         <button
-          onClick={() => router.push(`/book-selection?restore=${encodeURIComponent(year)}`)}
+          onClick={() => router.push(`/books/byYear/${decodeURIComponent(year)}`)}
           className="mt-4 text-blue-600 hover:underline"
         >
           ← Back to Subjects
@@ -87,7 +87,7 @@ export default function SubjectBooksPage() {
             {decodeURIComponent(year)} — {decodeURIComponent(subject)}
           </h1>
           <button
-            onClick={() => router.push(`/book-selection?restore=${encodeURIComponent(year)}`)}
+            onClick={() => router.push(`/books/byYear/${decodeURIComponent(year)}`)}
             className="text-sm text-blue-600 hover:underline"
           >
             ← Back to Subjects

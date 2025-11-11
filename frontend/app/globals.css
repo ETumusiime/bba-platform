@@ -89,3 +89,19 @@ p {
   color: #374151;
   line-height: 1.6;
 }
+
+/* ========================================================= */
+/* ✨ Smooth Page Transition Animation                        */
+/* ========================================================= */
+
+/* Smooth Page Transition */
+.page-transition {
+  opacity: 0;
+  animation: fadeIn 0.4s ease-in forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}

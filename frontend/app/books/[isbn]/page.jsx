@@ -125,7 +125,7 @@ export default function BookDetailsPage() {
               <>
                 {/* Back to Subjects (returns to year view) */}
                 <Link
-                  href={`/books/byYear/${encodeURIComponent(year)}`}
+                  href={`/books/byYear/${decodeURIComponent(year)}`}
                   className="px-4 py-2 rounded-md border hover:bg-gray-100 transition"
                 >
                   ← Subjects

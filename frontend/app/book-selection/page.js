@@ -159,7 +159,7 @@ function BookSelectionContent() {
               {(subjectsByYear[selectedYear] || []).map((subject) => (
                 <Link
                   key={subject}
-                  href={`/books/byYear/${encodeURIComponent(selectedYear)}/${encodeURIComponent(subject)}`}
+                  href={`/books/byYear/${selectedYear}/${encodeURIComponent(subject)}`}
                   className="px-6 py-3 bg-white shadow-sm hover:shadow-lg rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 text-green-700 transition-all text-center"
                 >
                   {subject}
