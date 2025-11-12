@@ -3,18 +3,17 @@
 import React from "react";
 import { GlobalProviders } from "./providers.jsx";
 import ClientLayout from "./ClientLayout";
-import { CartProvider } from "../context/CartContext"; // ✅ Global Cart Context
-import CartFloatingButton from "../components/CartFloatingButton"; // ✅ Floating Cart Button
+import { CartProvider } from "../context/CartContext";
+import CartIcon from "../components/CartIcon"; // ✅ Relative import, not @/
 
 export default function RootClientWrapper({ children }) {
   return (
     <GlobalProviders>
-      {/* ✅ CartProvider wraps entire client tree to persist cart across routes */}
       <CartProvider>
         <ClientLayout>{children}</ClientLayout>
 
-        {/* ✅ Global floating cart button (visible when items exist) */}
-        <CartFloatingButton />
+        {/* ✅ Global Cart Icon (fixed bottom-right, visible for logged-in users) */}
+        <CartIcon />
       </CartProvider>
     </GlobalProviders>
   );

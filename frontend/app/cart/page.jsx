@@ -1,7 +1,9 @@
 "use client";
+
 import { useCart } from "../../context/CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import toast from "react-hot-toast";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
@@ -19,19 +21,22 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-6">
-      <div className="max-w-5xl mx-auto bg-white p-6 rounded-2xl shadow-lg">
-        <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">
+    <main className="page-transition min-h-screen bg-gray-50 flex flex-col items-center py-12 px-6">
+      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-lg p-8">
+        <h1 className="text-3xl font-bold mb-8 text-center text-indigo-700">
           Your Cart
         </h1>
 
         {cart.length === 0 ? (
-          <p className="text-gray-500 text-center py-12">
-            Your cart is empty. Browse books and add your favorites.
+          <p className="text-center text-gray-600 py-12">
+            Your cart is empty.{" "}
+            <Link href="/book-selection" className="text-blue-600 hover:underline">
+              Continue Shopping
+            </Link>
           </p>
         ) : (
           <>
-            {/* 🖼️ Cart Items Table */}
+            {/* 🧾 Cart Table */}
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm md:text-base border border-gray-100 rounded-lg">
                 <thead className="bg-gray-50">
@@ -64,13 +69,13 @@ export default function CartPage() {
                             src={
                               item.cover_url?.startsWith("http")
                                 ? item.cover_url
-                                : `${API}${item.cover_url || ""}`
+                                : `${API}${item.cover_url || item.image_url || ""}`
                             }
                             alt={item.title || "Book cover"}
                             width={100}
                             height={130}
                             unoptimized
-                            className="object-contain rounded-md"
+                            className="object-contain rounded-md fade-in"
                             onError={(e) => {
                               e.currentTarget.src = "/placeholder-book.png";
                             }}
@@ -139,11 +144,11 @@ export default function CartPage() {
               </table>
             </div>
 
-            {/* 💳 Cart Summary Section */}
+            {/* 💳 Summary */}
             <div className="flex flex-col md:flex-row justify-between items-center mt-8 border-t pt-6">
               <p className="text-lg font-semibold text-gray-700 mb-4 md:mb-0">
                 Total:{" "}
-                <span className="text-blue-700 text-xl font-bold">
+                <span className="text-indigo-700 text-xl font-bold">
                   UGX {totalPrice.toLocaleString()}
                 </span>
               </p>
@@ -157,7 +162,7 @@ export default function CartPage() {
                 </button>
                 <button
                   onClick={handleCheckout}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white shadow-md transition"
+                  className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-white shadow-md transition"
                 >
                   Proceed to Checkout
                 </button>
@@ -167,7 +172,7 @@ export default function CartPage() {
         )}
       </div>
 
-      {/* 🧩 Fade-in image animation */}
+      {/* 🧩 Fade-in image helper */}
       <style jsx global>{`
         .fade-in {
           opacity: 0;
@@ -178,6 +183,6 @@ export default function CartPage() {
           opacity: 1;
         }
       `}</style>
-    </div>
+    </main>
   );
 }

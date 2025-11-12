@@ -20,7 +20,7 @@ export default function TestPaymentPage() {
       public_key: process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY,
       tx_ref: txRef,
       amount: Number(amount),
-      currency: "USD",
+      currency: "UGX",
       payment_options: "card, mobilemoneyuganda, banktransfer, ussd",
 
       customer: {

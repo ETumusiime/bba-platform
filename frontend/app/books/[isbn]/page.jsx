@@ -6,14 +6,14 @@ import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { useCart } from "../../../context/CartContext";
+import { useCart } from "../../../context/CartContext"; // ✅ correct relative path
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 export default function BookDetailsPage() {
   const { isbn } = useParams();
   const searchParams = useSearchParams();
-  const { addBook } = useCart();
+  const { addBook } = useCart(); // ✅ ensures shared global cart context
 
   const year = searchParams.get("year") || "";
   const subject = searchParams.get("subject") || "";
@@ -21,6 +21,7 @@ export default function BookDetailsPage() {
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ✅ Load Book Details
   useEffect(() => {
     async function fetchBook() {
       try {
@@ -29,26 +30,35 @@ export default function BookDetailsPage() {
         const data = await res.json();
         setBook(data);
         toast.success("✅ Book details loaded");
-      } catch {
+      } catch (error) {
+        console.error("❌ Error loading book:", error);
         toast.error("Book not found");
       } finally {
         setLoading(false);
       }
     }
+
     if (isbn) fetchBook();
   }, [isbn]);
 
+  // ✅ Add to Cart
   const handleAddToCart = () => {
-    if (!book) return;
+    if (!book) {
+      toast.error("Book not loaded yet");
+      return;
+    }
+
     addBook({
       isbn: book.isbn,
       title: book.title,
       price: Number(book.price_ugx || book.price || 0),
       image_url: book.image_url,
     });
+
     toast.success("✅ Added to cart");
   };
 
+  // ✅ Loading State
   if (loading)
     return (
       <div className="flex justify-center items-center min-h-screen text-gray-500">
@@ -56,6 +66,7 @@ export default function BookDetailsPage() {
       </div>
     );
 
+  // ✅ No Book Found
   if (!book)
     return (
       <div className="flex flex-col justify-center items-center min-h-screen text-gray-600">
@@ -74,8 +85,9 @@ export default function BookDetailsPage() {
       ? book.image_url
       : `${API}${book.image_url || ""}`;
 
+  // ✅ Page Layout
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-8 flex flex-col items-center">
+    <main className="page-transition min-h-screen bg-gradient-to-b from-blue-50 to-white p-8 flex flex-col items-center">
       <div className="max-w-5xl w-full bg-white shadow-xl rounded-xl p-6 md:p-10 flex flex-col md:flex-row gap-10">
         {/* 🖼️ Book Cover */}
         <div className="w-full md:w-1/3 flex justify-center">
@@ -123,15 +135,12 @@ export default function BookDetailsPage() {
             {/* ✅ Conditional Navigation */}
             {year && subject ? (
               <>
-                {/* Back to Subjects (returns to year view) */}
                 <Link
                   href={`/books/byYear/${decodeURIComponent(year)}`}
                   className="px-4 py-2 rounded-md border hover:bg-gray-100 transition"
                 >
                   ← Subjects
                 </Link>
-
-                {/* Back to main Select Books */}
                 <Link
                   href="/book-selection"
                   className="px-4 py-2 rounded-md border hover:bg-gray-100 transition"
@@ -140,15 +149,12 @@ export default function BookDetailsPage() {
                 </Link>
               </>
             ) : (
-              <>
-                {/* Only Select Books when user came from search */}
-                <Link
-                  href="/book-selection"
-                  className="px-4 py-2 rounded-md border hover:bg-gray-100 transition"
-                >
-                  Select Books
-                </Link>
-              </>
+              <Link
+                href="/book-selection"
+                className="px-4 py-2 rounded-md border hover:bg-gray-100 transition"
+              >
+                Select Books
+              </Link>
             )}
           </div>
         </div>

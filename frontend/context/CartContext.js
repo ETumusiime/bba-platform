@@ -15,7 +15,9 @@ export const useCart = () => {
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
 
-  // 🧭 Load from localStorage once on mount
+  /* -------------------------------------------------------------------------- */
+  /* 🧠 Load Cart from localStorage on Mount                                    */
+  /* -------------------------------------------------------------------------- */
   useEffect(() => {
     try {
       const stored = localStorage.getItem("bba_cart");
@@ -25,19 +27,21 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  // 💾 Persist cart changes to localStorage
+  /* -------------------------------------------------------------------------- */
+  /* 💾 Persist Cart to localStorage Whenever It Changes                        */
+  /* -------------------------------------------------------------------------- */
   useEffect(() => {
-    if (cart && Array.isArray(cart)) {
-      try {
+    try {
+      if (Array.isArray(cart)) {
         localStorage.setItem("bba_cart", JSON.stringify(cart));
-      } catch (e) {
-        console.error("Failed to save cart:", e);
       }
+    } catch (e) {
+      console.error("Failed to save cart:", e);
     }
   }, [cart]);
 
   /* -------------------------------------------------------------------------- */
-  /* ➕ Add Book — fully idempotent merge                                       */
+  /* ➕ Add Book — Prevent Duplicates, Increment Quantity                        */
   /* -------------------------------------------------------------------------- */
   const addBook = (book) => {
     setCart((prev) => {
@@ -73,7 +77,7 @@ export function CartProvider({ children }) {
         toast.success("🛒 Book added to cart");
       }
 
-      // ✅ Persist new state immediately
+      // Persist immediately for consistency
       try {
         localStorage.setItem("bba_cart", JSON.stringify(updated));
       } catch (e) {
@@ -85,7 +89,7 @@ export function CartProvider({ children }) {
   };
 
   /* -------------------------------------------------------------------------- */
-  /* ➖ Update Quantity                                                        */
+  /* 🔢 Update Quantity                                                         */
   /* -------------------------------------------------------------------------- */
   const updateQuantity = (isbn, quantity) => {
     setCart((prev) =>
@@ -100,7 +104,7 @@ export function CartProvider({ children }) {
   };
 
   /* -------------------------------------------------------------------------- */
-  /* ❌ Remove Book                                                           */
+  /* ❌ Remove Book                                                             */
   /* -------------------------------------------------------------------------- */
   const removeBook = (isbn) => {
     setCart((prev) => {
@@ -114,7 +118,7 @@ export function CartProvider({ children }) {
   };
 
   /* -------------------------------------------------------------------------- */
-  /* 🧹 Clear Cart                                                            */
+  /* 🧹 Clear Cart                                                              */
   /* -------------------------------------------------------------------------- */
   const clearCart = () => {
     setCart([]);
@@ -123,16 +127,26 @@ export function CartProvider({ children }) {
   };
 
   /* -------------------------------------------------------------------------- */
-  /* 💰 Compute Total                                                         */
+  /* 💰 Compute Total                                                           */
   /* -------------------------------------------------------------------------- */
   const totalPrice = cart.reduce(
     (sum, i) => sum + Number(i.price || 0) * Number(i.quantity || 1),
     0
   );
 
+  /* -------------------------------------------------------------------------- */
+  /* 🧩 Provider Wrapper                                                        */
+  /* -------------------------------------------------------------------------- */
   return (
     <CartContext.Provider
-      value={{ cart, addBook, updateQuantity, removeBook, clearCart, totalPrice }}
+      value={{
+        cart,
+        addBook,
+        updateQuantity,
+        removeBook,
+        clearCart,
+        totalPrice,
+      }}
     >
       {children}
     </CartContext.Provider>

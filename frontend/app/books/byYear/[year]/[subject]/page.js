@@ -3,18 +3,22 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
+import toast from "react-hot-toast";
+import { useCart } from "../../../../../context/CartContext"; // ✅ exact path
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 export default function SubjectBooksPage() {
   const router = useRouter();
   const { year, subject } = useParams();
+  const { addBook } = useCart(); // ✅ Hook to add to global cart
 
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [redirecting, setRedirecting] = useState(false);
 
+  // ✅ Fetch all books for this subject
   useEffect(() => {
     async function fetchBooks() {
       try {
@@ -23,12 +27,10 @@ export default function SubjectBooksPage() {
         const data = await res.json();
         const results = data.results || [];
 
-        // ✅ Auto-redirect if exactly one book found
+        // ✅ Auto-redirect if only one book exists
         if (results.length === 1) {
           const book = results[0];
           setRedirecting(true);
-
-          // Add short delay to show loading spinner before navigation
           setTimeout(() => {
             router.push(
               `/books/${book.isbn}?year=${encodeURIComponent(year)}&subject=${encodeURIComponent(subject)}`
@@ -37,7 +39,6 @@ export default function SubjectBooksPage() {
           return;
         }
 
-        // Otherwise show list (rare case with multiple books)
         setBooks(results);
       } catch (err) {
         console.error("❌ Fetch error:", err);
@@ -50,7 +51,7 @@ export default function SubjectBooksPage() {
     fetchBooks();
   }, [subject, year, router]);
 
-  // ✅ Smooth loading spinner
+  // ✅ Loading spinner
   if (loading || redirecting)
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-600">
@@ -61,7 +62,7 @@ export default function SubjectBooksPage() {
       </main>
     );
 
-  // ✅ Fallback for errors or empty results
+  // ✅ Error or empty state
   if (error)
     return (
       <main className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -78,9 +79,9 @@ export default function SubjectBooksPage() {
       </main>
     );
 
-  // ✅ Only shows if multiple books exist
+  // ✅ Display multiple books if available
   return (
-    <main className="min-h-screen flex flex-col items-center bg-gray-50 p-8">
+    <main className="page-transition min-h-screen flex flex-col items-center bg-gray-50 p-8">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-6xl">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-indigo-700">
@@ -132,15 +133,20 @@ export default function SubjectBooksPage() {
                     </p>
                   </div>
 
+                  {/* ✅ Add to Cart — Unified Logic */}
                   <button
-                    onClick={() =>
-                      router.push(
-                        `/books/${book.isbn}?year=${encodeURIComponent(year)}&subject=${encodeURIComponent(subject)}`
-                      )
-                    }
+                    onClick={() => {
+                      addBook({
+                        isbn: book.isbn,
+                        title: book.title,
+                        price: Number(book.price_ugx || book.price || 0),
+                        image_url: book.image_url,
+                      });
+                      toast.success("✅ Added to cart");
+                    }}
                     className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 transition mt-auto"
                   >
-                    View Details
+                    Add to Cart
                   </button>
                 </div>
               </div>
