@@ -4,6 +4,7 @@ import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import Link from "next/link";
 import { FlutterWaveButton, closePaymentModal } from "flutterwave-react-v3";
 
 export default function CheckoutPage() {
@@ -31,7 +32,7 @@ export default function CheckoutPage() {
   const publicKey = process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY;
 
   const flutterwaveConfig = {
-    public_key: publicKey, // ✅ correct parameter name for v3
+    public_key: publicKey,
     tx_ref: txRef,
     amount: totalPrice,
     currency: "UGX",
@@ -57,12 +58,12 @@ export default function CheckoutPage() {
     },
     callback: async (response) => {
       console.log("✅ Payment Response:", response);
-      closePaymentModal(); // close automatically
+      closePaymentModal();
 
       if (response.status === "successful") {
         toast.success("Payment successful!");
         clearCart();
-        router.push("/"); // can later change to /success
+        router.push("/success");
       } else {
         toast.error("Payment not completed. Please try again.");
       }
@@ -123,7 +124,10 @@ export default function CheckoutPage() {
                 </tbody>
                 <tfoot className="bg-gray-50">
                   <tr>
-                    <td colSpan="2" className="py-3 px-4 text-right font-semibold">
+                    <td
+                      colSpan="2"
+                      className="py-3 px-4 text-right font-semibold"
+                    >
                       Total:
                     </td>
                     <td className="py-3 px-4 text-right font-bold text-blue-700">
@@ -175,14 +179,35 @@ export default function CheckoutPage() {
               />
             </div>
 
-            <div className="md:col-span-2 mt-6">
+            {/* ✅ Centered Pay Button */}
+            <div className="md:col-span-2 mt-8 flex justify-center">
               <FlutterWaveButton
                 {...flutterwaveConfig}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-md"
+                className="bg-green-600 hover:bg-green-700 text-white text-center font-semibold 
+                           py-3 px-8 rounded-lg transition duration-200 shadow-md 
+                           w-full md:w-1/2 flex justify-center items-center"
                 onClick={handlePayClick}
-              />
+              >
+                Confirm & Pay (UGX {totalPrice.toLocaleString()})
+              </FlutterWaveButton>
             </div>
           </form>
+
+          {/* 🧭 Navigation Buttons */}
+          <div className="mt-8 flex justify-between">
+            <Link
+              href="/cart"
+              className="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition"
+            >
+              ← Back to Cart
+            </Link>
+            <Link
+              href="/book-selection"
+              className="text-blue-600 underline hover:text-blue-800"
+            >
+              Continue Shopping →
+            </Link>
+          </div>
         </section>
       </div>
     </div>

@@ -21,50 +21,45 @@ export default function CartPage() {
   };
 
   return (
-    <main className="page-transition min-h-screen bg-gray-50 flex flex-col items-center py-12 px-6">
-      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold mb-8 text-center text-indigo-700">
+    <main className="min-h-screen bg-gray-50 py-12 px-4 flex flex-col items-center">
+      <div className="w-full max-w-5xl bg-white shadow-md rounded-2xl p-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">
           Your Cart
         </h1>
 
         {cart.length === 0 ? (
-          <p className="text-center text-gray-600 py-12">
+          <p className="text-center text-gray-600 py-10">
             Your cart is empty.{" "}
-            <Link href="/book-selection" className="text-blue-600 hover:underline">
-              Continue Shopping
+            <Link
+              href="/book-selection"
+              className="text-blue-600 underline ml-1 hover:text-blue-800"
+            >
+              Continue Shopping →
             </Link>
           </p>
         ) : (
           <>
             {/* 🧾 Cart Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm md:text-base border border-gray-100 rounded-lg">
-                <thead className="bg-gray-50">
+            <div className="overflow-x-auto mb-10">
+              <table className="w-full text-sm md:text-base border border-gray-100 rounded-lg">
+                <thead className="bg-gray-100">
                   <tr>
-                    <th className="py-3 px-4 text-left font-medium text-gray-600">
-                      Book
-                    </th>
-                    <th className="py-3 px-4 text-center font-medium text-gray-600">
-                      Quantity
-                    </th>
-                    <th className="py-3 px-4 text-right font-medium text-gray-600">
-                      Price (UGX)
-                    </th>
-                    <th className="py-3 px-4 text-center font-medium text-gray-600">
-                      Remove
-                    </th>
+                    <th className="text-left py-3 px-4">Book</th>
+                    <th className="text-center py-3 px-4">Quantity</th>
+                    <th className="text-right py-3 px-4">Price (UGX)</th>
+                    <th className="text-center py-3 px-4">Remove</th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-200">
                   {cart.map((item) => (
                     <tr
                       key={item.book_isbn || item.isbn || item.id}
-                      className="hover:bg-gray-50 transition-colors"
+                      className="hover:bg-gray-50 transition"
                     >
-                      {/* 🖼️ Book + Title */}
+                      {/* 📘 Book Info */}
                       <td className="py-3 px-4 flex items-center gap-4">
-                        <div className="w-16 h-24 relative flex-shrink-0 bg-white rounded border border-gray-200 overflow-hidden">
+                        <div className="w-16 h-24 relative flex-shrink-0 border border-gray-200 bg-white rounded-md overflow-hidden">
                           <Image
                             src={
                               item.cover_url?.startsWith("http")
@@ -75,13 +70,13 @@ export default function CartPage() {
                             width={100}
                             height={130}
                             unoptimized
-                            className="object-contain rounded-md fade-in"
+                            className="object-contain rounded fade-in"
                             onError={(e) => {
                               e.currentTarget.src = "/placeholder-book.png";
                             }}
                           />
                         </div>
-                        <span className="font-medium text-gray-800 leading-tight">
+                        <span className="font-medium text-gray-800">
                           {item.title}
                         </span>
                       </td>
@@ -96,7 +91,7 @@ export default function CartPage() {
                                 item.quantity - 1
                               )
                             }
-                            className="px-2 py-1 text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition"
+                            className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
                             aria-label="Decrease quantity"
                           >
                             −
@@ -113,7 +108,7 @@ export default function CartPage() {
                                 item.quantity + 1
                               )
                             }
-                            className="px-2 py-1 text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition"
+                            className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
                             aria-label="Increase quantity"
                           >
                             +
@@ -132,10 +127,9 @@ export default function CartPage() {
                           onClick={() =>
                             removeBook(item.book_isbn || item.isbn || item.id)
                           }
-                          className="text-red-500 hover:text-red-700 transition"
-                          title="Remove from cart"
+                          className="text-red-500 hover:text-red-700 font-semibold"
                         >
-                          ✕
+                          ×
                         </button>
                       </td>
                     </tr>
@@ -144,11 +138,11 @@ export default function CartPage() {
               </table>
             </div>
 
-            {/* 💳 Summary */}
-            <div className="flex flex-col md:flex-row justify-between items-center mt-8 border-t pt-6">
+            {/* 💳 Summary + Actions */}
+            <div className="flex flex-col md:flex-row justify-between items-center border-t pt-6">
               <p className="text-lg font-semibold text-gray-700 mb-4 md:mb-0">
                 Total:{" "}
-                <span className="text-indigo-700 text-xl font-bold">
+                <span className="text-indigo-700 font-bold text-xl">
                   UGX {totalPrice.toLocaleString()}
                 </span>
               </p>
@@ -168,11 +162,27 @@ export default function CartPage() {
                 </button>
               </div>
             </div>
+
+            {/* 🧭 Navigation */}
+            <div className="mt-8 flex justify-between">
+              <Link
+                href="/book-selection"
+                className="text-blue-600 underline hover:text-blue-800"
+              >
+                ← Continue Shopping
+              </Link>
+              <Link
+                href="/checkout"
+                className="text-green-600 underline hover:text-green-800"
+              >
+                Go to Checkout →
+              </Link>
+            </div>
           </>
         )}
       </div>
 
-      {/* 🧩 Fade-in image helper */}
+      {/* ✨ Smooth image fade-in */}
       <style jsx global>{`
         .fade-in {
           opacity: 0;
