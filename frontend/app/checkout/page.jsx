@@ -1,4 +1,5 @@
 "use client";
+
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -26,62 +27,47 @@ export default function CheckoutPage() {
     return true;
   };
 
-  // 🧮 Compute totals
-  const supplierTotal = totalPrice; // can modify later for markup
-  const finalAmount = totalPrice;
-
-  // 🧠 Inline payment config
   const txRef = `BBA-${Date.now()}`;
+  const publicKey = process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY;
+
   const flutterwaveConfig = {
-    public_key:
-      process.env.NEXT_PUBLIC_FLW_PUBLIC_KEY ||
-      "FLWPUBK_TEST-xxxxxxxxxxxxxxxxxxxxxxxxxxxx-X",
+    public_key: publicKey, // ✅ correct parameter name for v3
     tx_ref: txRef,
-    amount: finalAmount,
+    amount: totalPrice,
     currency: "UGX",
-    payment_options: "card, mobilemoneyuganda, banktransfer, ussd",
-    customer: { email: form.email, name: form.name },
+    payment_options: "card, mobilemoneyuganda",
+    customer: {
+      email: form.email,
+      name: form.name,
+    },
+    subaccounts: [
+      {
+        id: "RS_C8B46E6463BDEF2DF54F471ABA21BE4C", // Mallory International GBP
+        transaction_split_ratio: 85,
+      },
+      {
+        id: "RS_F79C5237301A3183C0AB8410E23EB42A", // Bethel Bridge Academy UGX
+        transaction_split_ratio: 15,
+      },
+    ],
     customizations: {
       title: "Bethel Bridge Academy",
-      description: "Cambridge Books",
+      description: "Cambridge Book Purchase",
       logo: "/file.svg",
     },
-    text: `Confirm & Pay (${finalAmount.toLocaleString()} UGX)`,
-    callback: async (resp) => {
-      try {
-        toast.loading("Verifying payment...");
+    callback: async (response) => {
+      console.log("✅ Payment Response:", response);
+      closePaymentModal(); // close automatically
 
-        const verifyRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/payments/verify`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              transaction_id: resp?.transaction_id,
-              tx_ref: txRef,
-              parent: { name: form.name, email: form.email },
-              items: cart,
-              supplierTotal,
-            }),
-          }
-        );
-
-        const data = await verifyRes.json();
-        if (data.success) {
-          toast.success("✅ Payment verified successfully!");
-          clearCart();
-          router.push("/"); // later replace with /success
-        } else {
-          toast.error("Verification failed. Check backend logs.");
-        }
-      } catch (err) {
-        console.error("❌ Verification error:", err);
-        toast.error("Error verifying payment.");
-      } finally {
-        closePaymentModal();
+      if (response.status === "successful") {
+        toast.success("Payment successful!");
+        clearCart();
+        router.push("/"); // can later change to /success
+      } else {
+        toast.error("Payment not completed. Please try again.");
       }
     },
-    onClose: () => toast("Payment modal closed."),
+    onClose: () => toast("Payment window closed."),
   };
 
   const handlePayClick = (e) => {
@@ -155,7 +141,10 @@ export default function CheckoutPage() {
           <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">
             Parent Information
           </h2>
-          <form onSubmit={handlePayClick} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form
+            onSubmit={handlePayClick}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Full Name
@@ -189,7 +178,7 @@ export default function CheckoutPage() {
             <div className="md:col-span-2 mt-6">
               <FlutterWaveButton
                 {...flutterwaveConfig}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-md"
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-md"
                 onClick={handlePayClick}
               />
             </div>
