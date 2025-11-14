@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
+import PublicNavbar from "../../components/PublicNavbar";
 import { usePathname } from "next/navigation";
-import PublicNavbar from "../components/PublicNavbar";
 
-export default function ClientLayout({ children }) {
+export default function SiteLayout({ children }) {
   const pathname = usePathname();
 
-  // Show navbar ONLY on homepage + informational pages
+  // Show navbar ONLY on homepage + info pages
   const showNavbar =
     pathname === "/" ||
     pathname.startsWith("/about") ||
@@ -16,7 +16,9 @@ export default function ClientLayout({ children }) {
   return (
     <>
       {showNavbar && <PublicNavbar />}
-      <main className="min-h-screen flex flex-col">{children}</main>
+      <main className="min-h-screen bg-gray-50 text-gray-900">
+        {children}
+      </main>
     </>
   );
 }
