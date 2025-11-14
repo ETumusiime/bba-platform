@@ -7,9 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/* -------------------------------------------------------------------------- */
-/* 🧑‍💼 EXISTING USER + ROLE MODELS */
-/* -------------------------------------------------------------------------- */
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * 🧑‍💼 EXISTING USER + ROLE MODELS
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 model User {
   id                 Int       @id @default(autoincrement())
   name               String
@@ -30,9 +36,15 @@ enum Role {
   ADMIN
 }
 
-/* -------------------------------------------------------------------------- */
-/* 📚 EXISTING BOOKS & RELATED MODELS */
-/* -------------------------------------------------------------------------- */
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * 📚 EXISTING BOOKS & RELATED MODELS
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 model book_details {
   id         Int       @id @default(autoincrement())
   isbn       String?   @unique(map: "book_details_isbn_unique")
@@ -119,35 +131,114 @@ model parents {
   created_at       DateTime? @default(now()) @db.Timestamp(6)
 }
 
-/* -------------------------------------------------------------------------- */
-/* 👨‍👩‍👧 NEW CHILD & ASSIGNMENT MODELS */
-/* -------------------------------------------------------------------------- */
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * 👨‍👩‍👧 NEW CHILD & ASSIGNMENT MODELS
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 model ChildUser {
-  id           String   @id @default(cuid())
-  username     String   @unique
+  id           String            @id @default(cuid())
+  username     String            @unique
   passwordHash String
   firstName    String?
   lastName     String?
-  status       String?  @default("ACTIVE")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  status       String?           @default("ACTIVE")
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
   assignments  ChildAssignment[]
 }
 
 model ChildAssignment {
-  id           String      @id @default(cuid())
-  childId      String
-  child        ChildUser   @relation(fields: [childId], references: [id], onDelete: Cascade)
-  subject      String
-  accessCode   String
-  providerUrl  String
-  status       AssignmentStatus @default(ACTIVE)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id          String           @id @default(cuid())
+  childId     String
+  child       ChildUser        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  subject     String
+  accessCode  String
+  providerUrl String
+  status      AssignmentStatus @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 enum AssignmentStatus {
   ACTIVE
   EXPIRED
   REVOKED
+}
+
+// -------------------------------------
+// BBA ORDER + PAYMENT MODELS
+// -------------------------------------
+
+model Order {
+  id          String  @id @default(uuid())
+  orderTag    String  @unique
+  parentId    String
+  parentName  String
+  parentEmail String
+  parentPhone String
+  country     String?
+  city        String?
+  addressLine String?
+
+  grandTotalUGX Int
+  markupUGX     Int
+  fixedFeeUGX   Int
+  baseTotalUGX  Int
+
+  malloryUGX     Int
+  malloryGBP     Decimal @db.Decimal(10, 2)
+  fxRateUGXtoGBP Decimal @db.Decimal(10, 4)
+
+  paymentMethod     String
+  paymentStatus     String  @default("pending")
+  flutterwaveTxId   String?
+  flutterwaveTxRef  String?
+  flutterwaveStatus String?
+
+  items        OrderItem[]
+  studentBooks StudentBook[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrderItem {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  bookId    String
+  isbn      String
+  title     String
+  studentId String
+  quantity  Int
+
+  basePriceUGX   Int
+  retailPriceUGX Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentBook {
+  id        String @id @default(uuid())
+  studentId String
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id])
+
+  isbn          String
+  title         String
+  provider      String
+  accessCodeRaw String
+  providerLink  String
+  status        String @default("active")
+
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
