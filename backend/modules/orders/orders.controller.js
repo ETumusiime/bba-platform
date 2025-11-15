@@ -1,13 +1,17 @@
 // backend/modules/orders/orders.controller.js
-import { createOrderWithItems, getOrderById, getOrderByTag } from "./orders.service.js";
-import { PrismaClient } from "@prisma/client";
+import {
+  createOrderWithItems,
+  getOrderById,
+  getOrderByTag,
+  markOrderAsPaid,
+} from "./orders.service.js";
 
+import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-/**
- * POST /api/orders
- * Create an order + items (no payment yet) – existing flow.
- */
+/* -------------------------------------------------------------------------- */
+/* 🟢 EXISTING createOrder (Old flow - keep intact)                           */
+/* -------------------------------------------------------------------------- */
 export async function createOrder(req, res) {
   try {
     const {
@@ -34,7 +38,7 @@ export async function createOrder(req, res) {
     if (!baseTotalUGX || Number(baseTotalUGX) <= 0) {
       return res.status(400).json({
         success: false,
-        message: "baseTotalUGX (Mallory total in UGX) is required",
+        message: "baseTotalUGX is required",
       });
     }
 
@@ -56,11 +60,7 @@ export async function createOrder(req, res) {
     return res.status(201).json({
       success: true,
       message: "Order created successfully",
-      data: {
-        order,
-        pricing,
-        orderTag,
-      },
+      data: { order, pricing, orderTag },
     });
   } catch (error) {
     console.error("❌ Error creating order:", error);
@@ -71,9 +71,9 @@ export async function createOrder(req, res) {
   }
 }
 
-/**
- * GET /api/orders/:id
- */
+/* -------------------------------------------------------------------------- */
+/* 🟢 GET ORDER BY ID                                                         */
+/* -------------------------------------------------------------------------- */
 export async function getOrder(req, res) {
   try {
     const { id } = req.params;
@@ -99,9 +99,9 @@ export async function getOrder(req, res) {
   }
 }
 
-/**
- * GET /api/orders/by-tag/:orderTag
- */
+/* -------------------------------------------------------------------------- */
+/* 🟢 GET ORDER BY HUMAN TAG                                                  */
+/* -------------------------------------------------------------------------- */
 export async function getOrderByTagHandler(req, res) {
   try {
     const { orderTag } = req.params;
@@ -128,41 +128,8 @@ export async function getOrderByTagHandler(req, res) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🌍 NEW: /api/orders/init – create order for FlutterwaveButton              */
+/* 🟢 INIT ORDER FOR FLUTTERWAVE BUTTON FLOW                                  */
 /* -------------------------------------------------------------------------- */
-/**
- * POST /api/orders/init
- *
- * Body:
- * {
- *   parentName: string,
- *   parentEmail: string,
- *   parentPhone?: string,
- *   country?: string,
- *   city?: string,
- *   addressLine?: string,
- *   cart: [
- *     {
- *       isbn: string,
- *       book_isbn: string,
- *       title: string,
- *       price: number,
- *       quantity: number,
- *       cover_url: string
- *     }
- *   ]
- * }
- *
- * Response:
- * {
- *   success: true,
- *   data: {
- *     orderId: string,
- *     txRef: string,
- *     amount: number
- *   }
- * }
- */
 export async function initOrderForFlutterwave(req, res) {
   try {
     const {
@@ -173,9 +140,9 @@ export async function initOrderForFlutterwave(req, res) {
       city,
       addressLine,
       cart,
+      studentAssignments = [], // Reserved for future student mapping
     } = req.body || {};
 
-    // Basic validation
     if (!parentName || !parentEmail) {
       return res.status(400).json({
         success: false,
@@ -190,44 +157,76 @@ export async function initOrderForFlutterwave(req, res) {
       });
     }
 
-    // Compute total from cart (price already includes markup + buffer in your model)
-    const totalUGX = cart.reduce((sum, item) => {
-      const price = Number(item.price) || 0;
-      const qty = Number(item.quantity) || 0;
-      return sum + price * qty;
-    }, 0);
+    // Compute backend-authoritative total
+    const grandTotalUGX = cart.reduce(
+      (sum, item) =>
+        sum +
+        Number(item.price || 0) * Number(item.quantity || 1),
+      0
+    );
 
-    if (totalUGX <= 0) {
+    if (grandTotalUGX <= 0) {
       return res.status(400).json({
         success: false,
         message: "Calculated total amount is invalid",
       });
     }
 
-    // Generate backend tx_ref (used by Flutterwave)
+    // Generate txRef and orderTag
     const random = Math.floor(Math.random() * 1_000_000)
       .toString()
       .padStart(6, "0");
-    const txRef = `BBA-${Date.now()}-${random}`;
 
-    // Create order record
-    // Assumes your Order model has fields:
-    // - parentName, parentEmail, parentPhone, country, city, addressLine
-    // - totalUGX, paymentStatus, txRef, items_json
+    const txRef = `BBA-${Date.now()}-${random}`;
+    const orderTag = txRef;
+
+    // Temporary until login is integrated
+    const parentId = "TEMP_PARENT_0001";
+
+    // Static FX for now
+    const fxRateUGXtoGBP = 1 / 5000;
+    const malloryUGX = grandTotalUGX;
+    const malloryGBP = malloryUGX * fxRateUGXtoGBP;
+
+    // Create order (NO items_json)
     const order = await prisma.order.create({
       data: {
+        orderTag,
+        parentId,
         parentName,
         parentEmail,
         parentPhone: parentPhone || "",
+
         country: country || "Uganda",
         city: city || "",
         addressLine: addressLine || "",
-        totalUGX,
+
+        grandTotalUGX,
+        baseTotalUGX: grandTotalUGX,
+        markupUGX: 0,
+        fixedFeeUGX: 0,
+        malloryUGX,
+        malloryGBP,
+        fxRateUGXtoGBP,
+
+        paymentMethod: "flutterwave",
         paymentStatus: "pending",
-        txRef,
-        // raw cart snapshot for audit & later assignment
-        items_json: cart,
+
+        flutterwaveTxRef: txRef,
+
+        items: {
+          create: cart.map((item) => ({
+            bookId: item.book_isbn || item.isbn,
+            isbn: item.isbn || item.book_isbn,
+            title: item.title || "",
+            studentId: "TEMP_STUDENT",
+            quantity: Number(item.quantity || 1),
+            basePriceUGX: Number(item.price || 0),
+            retailPriceUGX: Number(item.price || 0),
+          })),
+        },
       },
+      include: { items: true },
     });
 
     return res.status(201).json({
@@ -236,7 +235,8 @@ export async function initOrderForFlutterwave(req, res) {
       data: {
         orderId: order.id,
         txRef,
-        amount: totalUGX,
+        orderTag,
+        amount: grandTotalUGX,
       },
     });
   } catch (error) {
@@ -249,22 +249,16 @@ export async function initOrderForFlutterwave(req, res) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🌍 NEW: /api/orders/update-status – Flutterwave callback → update order    */
+/* 🟢 UPDATE ORDER STATUS AFTER FLUTTERWAVE PAYMENT                           */
 /* -------------------------------------------------------------------------- */
-/**
- * POST /api/orders/update-status
- *
- * Body (sent from frontend after Flutterwave callback):
- * {
- *   txRef: string,             // response.tx_ref
- *   status: string,            // "successful" | "cancelled" | "failed" etc
- *   transactionId?: string|number, // response.transaction_id
- *   rawFlutterwaveResponse?: any
- * }
- */
 export async function updateOrderStatusFromFlutterwave(req, res) {
   try {
-    const { txRef, status, transactionId, rawFlutterwaveResponse } = req.body || {};
+    const {
+      txRef,
+      status,
+      transactionId,
+      rawFlutterwaveResponse,
+    } = req.body || {};
 
     if (!txRef || !status) {
       return res.status(400).json({
@@ -274,42 +268,35 @@ export async function updateOrderStatusFromFlutterwave(req, res) {
     }
 
     const order = await prisma.order.findFirst({
-      where: { txRef },
+      where: { flutterwaveTxRef: txRef },
     });
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found for provided txRef",
+        message: "Order not found",
       });
     }
 
-    const isSuccessful = status === "successful";
-
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        paymentStatus: isSuccessful ? "paid" : "failed",
-        flutterwaveTxRef: txRef,
-        flutterwaveTxId: transactionId ? String(transactionId) : null,
-        flutterwaveStatus: status,
-        // if you have a JSON column to keep full payload, you can store it here:
-        // flutterwavePayload: rawFlutterwaveResponse || null,
-      },
+    const updated = await markOrderAsPaid(order.id, {
+      transactionId,
+      flwStatus: status,
+      flwRaw: rawFlutterwaveResponse,
     });
 
     return res.status(200).json({
       success: true,
-      message: isSuccessful
-        ? "Order marked as paid"
-        : "Order marked as failed / not successful",
+      message:
+        status === "successful"
+          ? "Order marked as paid"
+          : "Order marked as failed",
       data: {
         orderId: updated.id,
         paymentStatus: updated.paymentStatus,
       },
     });
   } catch (error) {
-    console.error("❌ Error updating order status from Flutterwave:", error);
+    console.error("❌ Error updating order status:", error);
     return res.status(500).json({
       success: false,
       message: error.message || "Server error updating order status",

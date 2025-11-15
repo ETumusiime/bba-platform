@@ -4,81 +4,97 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 /* -------------------------------------------------------------------------- */
-/* 🆕 createOrderWithItems (alias of your createOrderFromCart)                */
+/* 🟢 ALIAS (Existing legacy compatibility)                                   */
 /* -------------------------------------------------------------------------- */
 export async function createOrderWithItems(payload) {
   return await createOrderFromCart(payload);
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🆕 createOrderFromCart – your original function (kept intact)              */
+/* 🟢 CREATE ORDER + ITEMS (Old non-Flutterwave flow)                          */
 /* -------------------------------------------------------------------------- */
 export async function createOrderFromCart(payload) {
   const {
+    parentId = "TEMP_PARENT_0001",
     parentName,
     parentEmail,
     parentPhone,
     country,
     city,
     addressLine,
-    cart = [],
-    totalAmount,
-    txRef,
+    items = [],            // the legacy items array
+    paymentMethod = "flutterwave",
+    baseTotalUGX,
+    fxRateUGXtoGBP = 1 / 5000,
   } = payload;
 
-  // Recalculate server-side
-  const computedTotal = cart.reduce(
-    (sum, item) =>
-      sum + Number(item.price || 0) * Number(item.quantity || 1),
-    0
-  );
-
-  const grandTotalUGX = computedTotal;
-
-  const baseTotalUGX = grandTotalUGX;
+  const grandTotalUGX = baseTotalUGX;
   const markupUGX = 0;
   const fixedFeeUGX = 0;
   const malloryUGX = grandTotalUGX;
+  const malloryGBP = Math.floor(grandTotalUGX / 5000);
+
+  // Generate txRef + orderTag
+  const random = Math.floor(Math.random() * 1_000_000)
+    .toString()
+    .padStart(6, "0");
+  const txRef = `BBA-${Date.now()}-${random}`;
 
   const order = await prisma.order.create({
     data: {
       orderTag: txRef,
-      txRef,
+      flutterwaveTxRef: txRef,
+
+      parentId,
       parentName,
       parentEmail,
       parentPhone,
-      country,
-      city,
-      addressLine,
+      country: country || "Uganda",
+      city: city || "",
+      addressLine: addressLine || "",
 
-      totalUGX: grandTotalUGX,
+      grandTotalUGX,
       baseTotalUGX,
       markupUGX,
       fixedFeeUGX,
-      malloryUGX,
 
+      malloryUGX,
+      malloryGBP,
+      fxRateUGXtoGBP,
+
+      paymentMethod,
       paymentStatus: "pending",
-      items_json: cart, // Snapshot
 
       items: {
-        create: cart.map((item) => ({
+        create: items.map((item) => ({
+          bookId: item.book_isbn || item.isbn,
           isbn: item.isbn || item.book_isbn,
-          title: item.title || "",
+          title: item.title,
+          studentId: "TEMP_STUDENT",
           quantity: Number(item.quantity || 1),
-          unitPriceUGX: Number(item.price || 0),
-          totalPriceUGX:
-            Number(item.price || 0) * Number(item.quantity || 1),
+          basePriceUGX: Number(item.price || 0),
+          retailPriceUGX: Number(item.price || 0),
         })),
       },
     },
     include: { items: true },
   });
 
-  return order;
+  return {
+    order,
+    orderTag: txRef,
+    pricing: {
+      grandTotalUGX,
+      baseTotalUGX,
+      markupUGX,
+      fixedFeeUGX,
+      malloryUGX,
+    },
+  };
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🆕 getOrderById                                                            */
+/* 🟢 GET ORDER BY ID                                                         */
 /* -------------------------------------------------------------------------- */
 export async function getOrderById(id) {
   return prisma.order.findUnique({
@@ -88,7 +104,7 @@ export async function getOrderById(id) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🆕 getOrderByTag (alias to your txRef-based find)                          */
+/* 🟢 GET ORDER BY TAG (Human readable ID)                                    */
 /* -------------------------------------------------------------------------- */
 export async function getOrderByTag(orderTag) {
   return prisma.order.findFirst({
@@ -98,18 +114,17 @@ export async function getOrderByTag(orderTag) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🔍 Original: findOrderByTxRef (kept)                                       */
+/* 🟢 ORIGINAL TXREF LOOKUP (used by callbacks)                               */
 /* -------------------------------------------------------------------------- */
 export async function findOrderByTxRef(txRef) {
-  if (!txRef) return null;
-  return prisma.order.findUnique({
-    where: { txRef },
+  return prisma.order.findFirst({
+    where: { flutterwaveTxRef: txRef },
     include: { items: true },
   });
 }
 
 /* -------------------------------------------------------------------------- */
-/* 🆕 markOrderAsPaid → used after Flutterwave success                        */
+/* 🟢 MARK ORDER AS PAID                                                      */
 /* -------------------------------------------------------------------------- */
 export async function markOrderAsPaid(orderId, flwData) {
   const { transactionId, flwStatus, flwRaw } = flwData;
@@ -117,10 +132,9 @@ export async function markOrderAsPaid(orderId, flwData) {
   return prisma.order.update({
     where: { id: orderId },
     data: {
-      paymentStatus: "paid",
-      flutterwaveTxId: String(transactionId || ""),
-      flutterwaveStatus: flwStatus || "successful",
-      flutterwaveRaw: flwRaw ? JSON.stringify(flwRaw) : undefined,
+      paymentStatus: flwStatus === "successful" ? "paid" : "failed",
+      flutterwaveTxId: transactionId ? String(transactionId) : null,
+      flutterwaveStatus: flwStatus || null,
     },
   });
 }
