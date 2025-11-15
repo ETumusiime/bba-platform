@@ -7,9 +7,7 @@ import {
   initOrderForFlutterwave,
   updateOrderStatusFromFlutterwave,
 } from "./orders.controller.js";
-import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 /* -------------------------------------------------------------------------- */
@@ -18,59 +16,27 @@ const router = express.Router();
 router.get("/", (req, res) => res.send("📦 Orders API ready"));
 
 /* -------------------------------------------------------------------------- */
-/* 🆕 Create order (original workflow, not used in FlutterwaveButton)        */
+/* 🟢 (Legacy) Create order – NOT used by Flutterwave button                 */
 /* -------------------------------------------------------------------------- */
 router.post("/", createOrder);
 
 /* -------------------------------------------------------------------------- */
-/* 🌍 1. Initialize order for Flutterwave                                     */
+/* 🟢 Step 1 — Initialize Order for Flutterwave                              */
 /* -------------------------------------------------------------------------- */
 router.post("/init", initOrderForFlutterwave);
 
 /* -------------------------------------------------------------------------- */
-/* 🌍 2. Update order status after payment                                    */
+/* 🟢 Step 2 — Update Status After Payment                                    */
 /* -------------------------------------------------------------------------- */
 router.post("/update-status", updateOrderStatusFromFlutterwave);
 
 /* -------------------------------------------------------------------------- */
-/* 🌍 3. Fetch order by txRef (for receipt page)                              */
-/* -------------------------------------------------------------------------- */
-/* Must come BEFORE "/:id" to avoid conflicts */
-router.get("/by-txref/:txRef", async (req, res) => {
-  try {
-    const { txRef } = req.params;
-
-    const order = await prisma.order.findFirst({
-      where: { txRef },
-    });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: order,
-    });
-  } catch (err) {
-    console.error("❌ Error fetching order by txRef:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Server error fetching order by txRef",
-    });
-  }
-});
-
-/* -------------------------------------------------------------------------- */
-/* Fetch order by human-readable orderTag                                     */
+/* 🟢 Fetch order by human-readable tag (orderTag)                            */
 /* -------------------------------------------------------------------------- */
 router.get("/by-tag/:orderTag", getOrderByTagHandler);
 
 /* -------------------------------------------------------------------------- */
-/* Fetch order by internal numeric ID                                         */
+/* 🟢 Fetch order by internal ID                                              */
 /* -------------------------------------------------------------------------- */
 router.get("/:id", getOrder);
 

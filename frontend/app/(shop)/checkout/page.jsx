@@ -2,7 +2,7 @@
 
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { FlutterWaveButton, closePaymentModal } from "flutterwave-react-v3";
@@ -15,7 +15,7 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   /* -------------------------------------------------------------------------- */
-  /* 🧑‍🧑 Parent info                                                           */
+  /* 🧑‍🧑 Parent Info                                                          */
   /* -------------------------------------------------------------------------- */
   const [parentForm, setParentForm] = useState({
     name: "",
@@ -27,18 +27,18 @@ export default function CheckoutPage() {
   });
 
   /* -------------------------------------------------------------------------- */
-  /* 👧 Student assignment per ISBN                                            */
+  /* 👧 Student Assignment                                                     */
   /* -------------------------------------------------------------------------- */
   const [studentAssignments, setStudentAssignments] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Ensure assignment key for each cart item
+  // Ensure assignment exists per ISBN
   useEffect(() => {
     const initial = {};
-    cart?.forEach((item) => {
+    for (const item of cart) {
       const key = item.isbn || item.book_isbn;
-      if (key) initial[key] = studentAssignments[key] || "";
-    });
+      initial[key] = studentAssignments[key] || "";
+    }
     setStudentAssignments((prev) => ({ ...initial, ...prev }));
   }, [cart.length]); // eslint-disable-line
 
@@ -50,11 +50,10 @@ export default function CheckoutPage() {
       toast.error("Please fill in name, email, and phone.");
       return false;
     }
-    if (!cart || cart.length === 0) {
+    if (!cart.length) {
       toast.error("Your cart is empty.");
       return false;
     }
-    // Require student assignment for each book
     for (const item of cart) {
       const key = item.isbn || item.book_isbn;
       if (!studentAssignments[key]) {
@@ -66,10 +65,10 @@ export default function CheckoutPage() {
   };
 
   /* -------------------------------------------------------------------------- */
-  /* 🌍 1. Create Backend Order → Returns txRef, orderId, amount               */
+  /* 🌍 Backend Order Init (Step 1)                                            */
   /* -------------------------------------------------------------------------- */
-  const [fwConfig, setFwConfig] = useState(null);
   const [orderData, setOrderData] = useState(null);
+  const [fwConfig, setFwConfig] = useState(null);
 
   async function initBackendOrder(e) {
     e.preventDefault();
@@ -93,32 +92,31 @@ export default function CheckoutPage() {
           country: parentForm.country,
           city: parentForm.city,
           addressLine: parentForm.address,
-          cart, // use raw cart structure exactly
+          cart,
           studentAssignments,
         }),
       });
 
-      const data = await res.json();
+      const json = await res.json();
 
-      if (!res.ok || !data.success) {
-        toast.error(data.message || "Order creation failed.");
-        setIsSubmitting(false);
+      if (!json.success) {
+        toast.error(json.message || "Order creation failed.");
         return;
       }
 
-      const { txRef, amount, orderId } = data.data;
+      const { txRef, orderId, amount } = json.data;
 
-      setOrderData({ txRef, amount, orderId });
+      setOrderData({ txRef, orderId, amount });
 
       /* ---------------------------------------------------------------------- */
-      /* 🌍 2. Build Flutterwave Config After Backend Order Exists              */
+      /* 🌍 Configure Flutterwave Button (Step 2)                               */
       /* ---------------------------------------------------------------------- */
-      const config = {
+      setFwConfig({
         public_key: FLW_PUBLIC_KEY,
         tx_ref: txRef,
-        amount: amount,
+        amount,
         currency: "UGX",
-        payment_options: "card,mobilemoneyuganda,ussd",
+        payment_options: "card,mobilemoneyuganda",
         customer: {
           email: parentForm.email,
           phonenumber: parentForm.phone,
@@ -127,14 +125,21 @@ export default function CheckoutPage() {
         customizations: {
           title: "BethelBridge Academy – Digital Coursebooks",
           description: "Secure payment for Cambridge digital licenses",
+          logo: "/bba-logo.png",
         },
+
+        /* -------------------------------------------------------------------- */
+        /* 🌍 SUCCESS CALLBACK → Update Order Status (Step 3)                  */
+        /* -------------------------------------------------------------------- */
         callback: async (response) => {
           await finalizeBackendOrder(response);
         },
-        onClose: () => console.log("Flutterwave modal closed"),
-      };
 
-      setFwConfig(config);
+        onClose: () => {
+          toast.error("Payment window closed.");
+          router.push("/checkout/failed?reason=cancelled");
+        },
+      });
 
       toast.success("Order created — proceed to payment below.");
     } catch (err) {
@@ -146,7 +151,7 @@ export default function CheckoutPage() {
   }
 
   /* -------------------------------------------------------------------------- */
-  /* 🌍 3. Flutterwave Callback → Update backend → clear cart → redirect       */
+  /* 🌍 Finalise Backend Order After Flutterwave Success                       */
   /* -------------------------------------------------------------------------- */
   async function finalizeBackendOrder(response) {
     try {
@@ -161,10 +166,12 @@ export default function CheckoutPage() {
         }),
       });
 
-      const data = await res.json();
+      const json = await res.json();
 
-      if (!res.ok || !data.success) {
-        toast.error("Payment could not be verified. Contact support.");
+      if (!json.success) {
+        toast.error("Payment verification failed.");
+        closePaymentModal();
+        router.push("/checkout/failed?reason=verify_error");
         return;
       }
 
@@ -172,23 +179,31 @@ export default function CheckoutPage() {
         clearCart();
         closePaymentModal();
         toast.success("Payment successful!");
-        router.push("/success");
+        router.push(
+          `/checkout/success?orderId=${orderData.orderId}&txRef=${orderData.txRef}`
+        );
       } else {
         toast.error("Payment failed or cancelled.");
         closePaymentModal();
+        router.push("/checkout/failed");
       }
     } catch (err) {
       console.error(err);
       toast.error("Error verifying payment.");
+      closePaymentModal();
+      router.push("/checkout/failed?reason=exception");
     }
   }
 
-  const computedTotal =
-    totalPrice ??
-    cart.reduce((sum, i) => sum + i.price * (i.quantity || 1), 0);
+  /* -------------------------------------------------------------------------- */
+  /* 💰 Compute Total                                                         */
+  /* -------------------------------------------------------------------------- */
+  const computedTotal = useMemo(() => {
+    return cart.reduce((sum, i) => sum + i.price * (i.quantity || 1), 0);
+  }, [cart]);
 
   /* -------------------------------------------------------------------------- */
-  /* 🖼️ UI                                                                      */
+  /* 🖼️ UI                                                                    */
   /* -------------------------------------------------------------------------- */
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -198,14 +213,12 @@ export default function CheckoutPage() {
         </h1>
 
         {/* ------------------------------------------------------------------ */}
-        {/* 🧾 Order Summary                                                   */}
+        {/* 🧾 ORDER SUMMARY                                                   */}
         {/* ------------------------------------------------------------------ */}
         <section className="mb-10">
-          <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">
-            Your Order
-          </h2>
+          <h2 className="text-xl font-semibold mb-4">Your Order</h2>
 
-          {!cart || cart.length === 0 ? (
+          {!cart.length ? (
             <p className="text-gray-500 text-center py-6">
               Your cart is currently empty.
             </p>
@@ -214,18 +227,17 @@ export default function CheckoutPage() {
               <table className="w-full text-sm md:text-base">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left py-3 px-4">Book Title</th>
-                    <th className="text-center py-3 px-4">Qty</th>
-                    <th className="text-right py-3 px-4">Amount (UGX)</th>
-                    <th className="text-left py-3 px-4">Assign to Student</th>
+                    <th className="py-3 px-4 text-left">Book Title</th>
+                    <th className="py-3 px-4 text-center">Qty</th>
+                    <th className="py-3 px-4 text-right">Amount (UGX)</th>
+                    <th className="py-3 px-4 text-left">Assign to Student</th>
                   </tr>
                 </thead>
-
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {cart.map((item, idx) => {
                     const key = item.isbn || item.book_isbn;
                     return (
-                      <tr key={idx} className="hover:bg-gray-50">
+                      <tr key={idx} className="border-t">
                         <td className="py-3 px-4">{item.title}</td>
                         <td className="py-3 px-4 text-center">
                           {item.quantity}
@@ -235,10 +247,9 @@ export default function CheckoutPage() {
                         </td>
                         <td className="py-3 px-4">
                           <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                            placeholder="e.g. Foster, Tamba"
+                            className="w-full border rounded-lg px-3 py-2"
                             value={studentAssignments[key] || ""}
+                            placeholder="e.g. Tamba"
                             onChange={(e) =>
                               setStudentAssignments((prev) => ({
                                 ...prev,
@@ -251,10 +262,12 @@ export default function CheckoutPage() {
                     );
                   })}
                 </tbody>
-
                 <tfoot className="bg-gray-50">
                   <tr>
-                    <td colSpan={2} className="py-3 px-4 text-right font-semibold">
+                    <td
+                      colSpan={2}
+                      className="py-3 px-4 text-right font-semibold"
+                    >
                       Total:
                     </td>
                     <td className="py-3 px-4 text-right font-bold text-blue-700">
@@ -272,148 +285,124 @@ export default function CheckoutPage() {
         {/* 👨‍👩‍👧 Parent Information                                           */}
         {/* ------------------------------------------------------------------ */}
         <section>
-          <h2 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-4">
-            Parent Information
-          </h2>
+          <h2 className="text-xl font-semibold mb-4">Parent Information</h2>
 
-          <form onSubmit={initBackendOrder} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form
+            onSubmit={initBackendOrder}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
             {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name
-              </label>
+              <label className="block mb-1">Full Name</label>
               <input
                 type="text"
-                name="name"
+                className="w-full border rounded-lg px-4 py-2"
                 value={parentForm.name}
                 onChange={(e) =>
                   setParentForm((p) => ({ ...p, name: e.target.value }))
                 }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                required
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
+              <label className="block mb-1">Email Address</label>
               <input
                 type="email"
-                name="email"
+                className="w-full border rounded-lg px-4 py-2"
                 value={parentForm.email}
                 onChange={(e) =>
                   setParentForm((p) => ({ ...p, email: e.target.value }))
                 }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                required
               />
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
-              </label>
+              <label className="block mb-1">Phone Number</label>
               <input
                 type="tel"
-                name="phone"
+                className="w-full border rounded-lg px-4 py-2"
                 value={parentForm.phone}
                 onChange={(e) =>
                   setParentForm((p) => ({ ...p, phone: e.target.value }))
                 }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                required
               />
             </div>
 
             {/* Country */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Country
-              </label>
+              <label className="block mb-1">Country</label>
               <input
-                type="text"
-                name="country"
+                className="w-full border rounded-lg px-4 py-2"
                 value={parentForm.country}
                 onChange={(e) =>
                   setParentForm((p) => ({ ...p, country: e.target.value }))
                 }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
               />
             </div>
 
             {/* City */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                City
-              </label>
+              <label className="block mb-1">City</label>
               <input
-                type="text"
-                name="city"
+                className="w-full border rounded-lg px-4 py-2"
                 value={parentForm.city}
                 onChange={(e) =>
                   setParentForm((p) => ({ ...p, city: e.target.value }))
                 }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
               />
             </div>
 
             {/* Address */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address / Neighbourhood
-              </label>
+              <label className="block mb-1">Address / Neighbourhood</label>
               <input
-                type="text"
-                name="address"
+                className="w-full border rounded-lg px-4 py-2"
                 value={parentForm.address}
                 onChange={(e) =>
                   setParentForm((p) => ({ ...p, address: e.target.value }))
                 }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
               />
             </div>
 
             {/* ------------------------------------------------------------------ */}
-            {/* 💳 Create Order Button (Replaced by Flutterwave Button afterward)  */}
+            {/* BUTTON AREA                                                       */}
             {/* ------------------------------------------------------------------ */}
             <div className="md:col-span-2 mt-8 flex justify-center">
-              {!orderData && (
+              {!orderData ? (
                 <button
                   type="submit"
-                  disabled={isSubmitting || !cart || cart.length === 0}
+                  disabled={isSubmitting}
                   className={`${
-                    isSubmitting ? "bg-green-400" : "bg-green-600 hover:bg-green-700"
-                  } text-white font-semibold py-3 px-8 rounded-lg shadow-md w-full md:w-1/2`}
+                    isSubmitting
+                      ? "bg-green-400"
+                      : "bg-green-600 hover:bg-green-700"
+                  } text-white font-semibold py-3 px-8 rounded-lg w-full md:w-1/2`}
                 >
                   {isSubmitting
                     ? "Creating Order..."
                     : `Create Order (UGX ${computedTotal.toLocaleString()})`}
                 </button>
-              )}
-
-              {/* ------------------------------------------------------------------ */}
-              {/* 💳 Flutterwave Payment Button (only after backend order init)     */}
-              {/* ------------------------------------------------------------------ */}
-              {orderData && fwConfig && (
-                <div className="w-full md:w-1/2">
-                  <FlutterWaveButton
-                    {...fwConfig}
-                    className="w-full mt-3 bg-blue-600 text-white py-3 px-6 rounded-lg shadow-md hover:bg-blue-700"
-                    text={`Pay UGX ${orderData.amount.toLocaleString()}`}
-                  />
-                </div>
+              ) : (
+                fwConfig && (
+                  <div className="w-full md:w-1/2">
+                    <FlutterWaveButton
+                      {...fwConfig}
+                      className="w-full mt-3 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700"
+                      text={`Pay UGX ${orderData.amount.toLocaleString()}`}
+                    />
+                  </div>
+                )
               )}
             </div>
           </form>
 
-          {/* Navigation */}
+          {/* NAVIGATION */}
           <div className="mt-8 flex justify-between">
             <Link
               href="/cart"
-              className="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300"
+              className="bg-gray-200 px-5 py-2 rounded-lg hover:bg-gray-300"
             >
               ← Back to Cart
             </Link>

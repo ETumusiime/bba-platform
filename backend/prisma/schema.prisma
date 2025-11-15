@@ -135,7 +135,7 @@ model parents {
  * --------------------------------------------------------------------------
  */
 /**
- * 👨‍👩‍👧 NEW CHILD & ASSIGNMENT MODELS
+ * 👨‍👩‍👧 OLD / LEGACY CHILD & ASSIGNMENT MODELS (KEEP)
  */
 /**
  * --------------------------------------------------------------------------
@@ -241,4 +241,30 @@ model StudentBook {
   expiresAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * 🆕 NEW: STUDENT MODEL (MAIN SYSTEM)
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+model Student {
+  id             String   @id @default(cuid())
+  parentId       String
+  fullName       String
+  email          String   @unique
+  passwordHash   String
+  dateOfBirth    DateTime
+  schoolYear     String
+  whatsapp       String?
+  country        String
+  city           String
+  neighbourhood  String
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

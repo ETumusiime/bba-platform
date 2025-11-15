@@ -10,21 +10,27 @@ export default function ParentStudentsPage() {
   const [students, setStudents] = useState([]);
   const [editing, setEditing] = useState(null);
   const [editData, setEditData] = useState({});
-  const [newPassword, setNewPassword] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
 
-  const API = process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:5000";
+  const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+  /* -------------------------------------------------------------------------- */
+  /* 📌 Load students                                                           */
+  /* -------------------------------------------------------------------------- */
   const loadStudents = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("bba_parent_token");
-      const res = await fetch(`${API}/api/parent/children`, {
+
+      const res = await fetch(`${API}/api/parent/students`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Failed to load");
-      setStudents(data.children || []);
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to load");
+
+      setStudents(json.data || []);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -37,12 +43,13 @@ export default function ParentStudentsPage() {
   }, []);
 
   /* -------------------------------------------------------------------------- */
-  /* ✏️ Handle edit + save                                                      */
+  /* ✏️ SAVE EDIT                                                               */
   /* -------------------------------------------------------------------------- */
-  const handleEdit = async (id) => {
+  const handleEditSave = async (studentId) => {
     const token = localStorage.getItem("bba_parent_token");
+
     try {
-      const res = await fetch(`${API}/api/parent/children/${id}`, {
+      const res = await fetch(`${API}/api/parent/students/${studentId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -50,9 +57,11 @@ export default function ParentStudentsPage() {
         },
         body: JSON.stringify(editData),
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Update failed");
-      toast.success("✅ Student updated successfully");
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Update failed");
+
+      toast.success("Student updated successfully");
       setEditing(null);
       loadStudents();
     } catch (err) {
@@ -61,27 +70,30 @@ export default function ParentStudentsPage() {
   };
 
   /* -------------------------------------------------------------------------- */
-  /* 🔑 Reset password                                                         */
+  /* 🔑 RESET PASSWORD                                                          */
   /* -------------------------------------------------------------------------- */
-  const handleResetPassword = async (id) => {
+  const handleResetPassword = async (studentId) => {
     if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
+      toast.error("Password must be at least 8 characters.");
       return;
     }
 
     const token = localStorage.getItem("bba_parent_token");
+
     try {
-      const res = await fetch(`${API}/api/parent/children/${id}/reset-password`, {
+      const res = await fetch(`${API}/api/parent/students/${studentId}/reset-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ password: newPassword }),
+        body: JSON.stringify({ newPassword }),
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Reset failed");
-      toast.success("✅ Password reset successfully");
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Reset failed");
+
+      toast.success(`Password reset! New Password: ${json.data.tempPassword}`);
       setShowPasswordModal(false);
       setNewPassword("");
     } catch (err) {
@@ -90,149 +102,139 @@ export default function ParentStudentsPage() {
   };
 
   /* -------------------------------------------------------------------------- */
-  /* 🚪 Logout & Navigation                                                     */
+  /* 🗑️ DELETE REQUEST                                                         */
+  /* -------------------------------------------------------------------------- */
+  const handleDeleteRequest = async (studentId) => {
+    const token = localStorage.getItem("bba_parent_token");
+
+    try {
+      const res = await fetch(`${API}/api/parent/students/${studentId}/request-delete`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Request failed");
+
+      toast.success("Delete request sent to admin.");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /* 🚪 LOGOUT                                                                  */
   /* -------------------------------------------------------------------------- */
   const handleLogout = () => {
     localStorage.removeItem("bba_parent_token");
-    document.cookie =
-      "bba_parent_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-    toast.success("👋 Logged out");
+    toast.success("Logged out");
     router.replace("/login");
   };
 
   /* -------------------------------------------------------------------------- */
-  /* 🎨 UI Rendering                                                           */
+  /* 🎨 UI                                                                      */
   /* -------------------------------------------------------------------------- */
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-100 py-8 px-4">
       <Toaster position="top-center" />
       <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-xl p-6">
+        {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-indigo-800 flex items-center gap-2">
-            🎓 My Registered Students
+            🎓 My Students
           </h1>
+
           <div className="flex gap-3">
             <button
               onClick={() => router.push("/dashboard")}
-              className="bg-gray-100 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-200 transition shadow-sm"
+              className="bg-gray-100 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-200"
             >
-              ⬅ Back to Dashboard
+              ⬅ Dashboard
             </button>
+
             <button
               onClick={handleLogout}
-              className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition shadow-sm"
+              className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
             >
               Logout
             </button>
           </div>
         </div>
 
+        {/* LOADING */}
         {loading ? (
-          <p className="text-center text-gray-600 py-8">Loading students…</p>
+          <p className="text-center text-gray-600 py-8">Loading…</p>
         ) : students.length === 0 ? (
           <div className="text-center text-gray-600">
             <p>No students registered yet.</p>
             <button
               onClick={() => router.push("/parent/students/new")}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
+              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
             >
-              ➕ Register a Student
+              ➕ Register Student
             </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full border border-gray-200 text-sm sm:text-base rounded-lg overflow-hidden">
+            <table className="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
               <thead className="bg-indigo-50 text-indigo-700">
                 <tr>
-                  <th className="py-2 px-3 text-left border-b">Name</th>
+                  <th className="py-2 px-3 text-left border-b">Full Name</th>
                   <th className="py-2 px-3 text-left border-b">Email</th>
                   <th className="py-2 px-3 text-left border-b">Year</th>
                   <th className="py-2 px-3 text-left border-b">DOB</th>
-                  <th className="py-2 px-3 text-left border-b text-center">
-                    Actions
-                  </th>
+                  <th className="py-2 px-3 text-center border-b">Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {students.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50">
+                    {/* Full Name */}
                     <td className="py-2 px-3 border-b">
                       {editing === s.id ? (
                         <input
-                          type="text"
-                          value={editData.first_name || s.first_name}
+                          value={editData.fullName || s.fullName}
                           onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              first_name: e.target.value,
-                            })
+                            setEditData({ ...editData, fullName: e.target.value })
                           }
                           className="border rounded px-2 py-1 w-full"
                         />
                       ) : (
-                        `${s.first_name} ${s.last_name}`
+                        s.fullName
                       )}
                     </td>
 
-                    <td className="py-2 px-3 border-b">
-                      {editing === s.id ? (
-                        <input
-                          type="email"
-                          value={editData.email || s.email}
-                          onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              email: e.target.value,
-                            })
-                          }
-                          className="border rounded px-2 py-1 w-full"
-                        />
-                      ) : (
-                        s.email
-                      )}
-                    </td>
+                    {/* Email */}
+                    <td className="py-2 px-3 border-b">{s.email}</td>
 
+                    {/* School Year */}
                     <td className="py-2 px-3 border-b">
                       {editing === s.id ? (
                         <input
                           type="number"
-                          value={editData.school_year || s.school_year}
+                          value={editData.schoolYear || s.schoolYear}
                           onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              school_year: e.target.value,
-                            })
+                            setEditData({ ...editData, schoolYear: e.target.value })
                           }
                           className="border rounded px-2 py-1 w-20"
                         />
                       ) : (
-                        s.school_year
+                        s.schoolYear
                       )}
                     </td>
 
+                    {/* DOB */}
                     <td className="py-2 px-3 border-b">
-                      {editing === s.id ? (
-                        <input
-                          type="date"
-                          value={
-                            editData.dob ||
-                            new Date(s.dob).toISOString().split("T")[0]
-                          }
-                          onChange={(e) =>
-                            setEditData({ ...editData, dob: e.target.value })
-                          }
-                          className="border rounded px-2 py-1"
-                        />
-                      ) : (
-                        new Date(s.dob).toLocaleDateString("en-GB")
-                      )}
+                      {new Date(s.dateOfBirth).toLocaleDateString("en-GB")}
                     </td>
 
+                    {/* ACTIONS */}
                     <td className="py-2 px-3 border-b text-center">
                       {editing === s.id ? (
                         <>
                           <button
-                            onClick={() => handleEdit(s.id)}
+                            onClick={() => handleEditSave(s.id)}
                             className="text-green-700 font-semibold mr-2"
                           >
                             Save
@@ -246,6 +248,7 @@ export default function ParentStudentsPage() {
                         </>
                       ) : (
                         <>
+                          {/* EDIT */}
                           <button
                             onClick={() => {
                               setEditing(s.id);
@@ -255,6 +258,8 @@ export default function ParentStudentsPage() {
                           >
                             Edit
                           </button>
+
+                          {/* RESET PW */}
                           <button
                             onClick={() => {
                               setShowPasswordModal(true);
@@ -263,6 +268,14 @@ export default function ParentStudentsPage() {
                             className="text-yellow-600 hover:underline mr-2"
                           >
                             Reset PW
+                          </button>
+
+                          {/* DELETE REQUEST */}
+                          <button
+                            onClick={() => handleDeleteRequest(s.id)}
+                            className="text-red-600 hover:underline"
+                          >
+                            Request Delete
                           </button>
                         </>
                       )}
@@ -275,7 +288,7 @@ export default function ParentStudentsPage() {
         )}
       </div>
 
-      {/* 🔐 Reset Password Modal */}
+      {/* 🔐 RESET PASSWORD MODAL */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">

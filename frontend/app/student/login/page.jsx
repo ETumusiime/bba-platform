@@ -1,104 +1,122 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 function StudentLoginContent() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const [email, setEmail] = useState("");
+  const prefilledEmail = params.get("email") || "";
+
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Prefill email if passed from parent registration
-  useEffect(() => {
-    const queryEmail = params.get("email");
-    if (queryEmail) setEmail(queryEmail);
-  }, [params]);
+  // Use env or fallback
+  const API =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+  /* -------------------------------------------------------------------------- */
+  /* 🚀 Handle Login                                                            */
+  /* -------------------------------------------------------------------------- */
   async function handleLogin(e) {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/student/login", {
+      const res = await fetch(`${API}/api/student/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const json = await res.json();
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Invalid credentials");
+      if (!json.success) {
+        toast.error(json.message || "Login failed");
+        setLoading(false);
+        return;
       }
 
-      const { token, child } = data;
-      if (!token) throw new Error("Missing token from server");
+      const token = json.data.token;
+      const student = json.data.student;
 
-      localStorage.setItem("bba_child_token", token);
-      localStorage.setItem("bba_child_info", JSON.stringify(child));
-      document.cookie = `bba_child_token=${token}; path=/; SameSite=Lax;`;
+      // Save student token + data
+      localStorage.setItem("bba_student_token", token);
+      localStorage.setItem("bba_student_name", student.fullName);
+      localStorage.setItem("bba_student_info", JSON.stringify(student));
 
-      const name = child?.first_name || "Student";
-      toast.success(`✅ Welcome, ${name}!`, { duration: 2000 });
+      toast.success(`Welcome, ${student.fullName}!`);
 
-      setTimeout(() => {
-        const next = params.get("next") || "/student/dashboard";
-        router.replace(next);
-      }, 2200);
+      router.replace("/student/dashboard");
     } catch (err) {
       console.error("❌ Login Error:", err);
-      toast.error(err.message || "❌ Login failed. Check credentials.", {
-        duration: 2500,
-      });
+      toast.error("Server error. Try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  /* -------------------------------------------------------------------------- */
+  /* 🎨 UI Rendering                                                            */
+  /* -------------------------------------------------------------------------- */
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <Toaster position="top-center" />
-      <div className="w-full max-w-md bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold text-center text-indigo-700 mb-6">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="bg-white shadow-xl rounded-xl p-8 max-w-md w-full">
+        <h1 className="text-2xl font-bold text-center mb-6 text-indigo-700">
           Student Login
         </h1>
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
-          <input
-            className="border rounded p-3"
-            placeholder="Email address"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+        <form onSubmit={handleLogin} className="space-y-4">
+          {/* Email */}
+          <div>
+            <label className="block text-sm mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              className="w-full border rounded-lg px-4 py-2"
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+            />
+          </div>
 
-          <input
-            className="border rounded p-3"
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          {/* Password */}
+          <div>
+            <label className="block text-sm mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              className="w-full border rounded-lg px-4 py-2"
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+            />
+          </div>
 
+          {/* Login button */}
           <button
             type="submit"
             disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded p-3 transition"
+            className={`w-full py-3 rounded-lg text-white font-semibold ${
+              loading
+                ? "bg-indigo-400"
+                : "bg-indigo-600 hover:bg-indigo-700"
+            }`}
           >
-            {loading ? "Signing In..." : "Sign In"}
+            {loading ? "Logging in…" : "Login"}
           </button>
         </form>
       </div>
-    </main>
+    </div>
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Wrapper: keeps compatibility with Next.js Suspense routing                  */
+/* -------------------------------------------------------------------------- */
 export default function StudentLoginPage() {
   return (
     <Suspense fallback={<div>Loading login...</div>}>

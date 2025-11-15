@@ -1,89 +1,80 @@
 // backend/routes/studentBooks.js
 import express from "express";
-import { prisma } from "../lib/prisma.js";
-import { verifyChildToken } from "../middleware/verifyChildToken.js";
+import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
 
 const router = express.Router();
+const prisma = new PrismaClient();
 
 /* -------------------------------------------------------------------------- */
-/* 📚 GET — Fetch Student Assignments (Protected)                             */
+/* 🔐 Helper: Require student auth (JWT in Authorization header)              */
 /* -------------------------------------------------------------------------- */
-router.get("/", verifyChildToken, async (req, res) => {
+function requireStudentAuth(req, res, next) {
   try {
-    const assignments = await prisma.childAssignment.findMany({
-      where: { childId: req.childId },
-      orderBy: { createdAt: "desc" },
-    });
-    return res.json(assignments);
-  } catch (err) {
-    console.error("❌ Error fetching student assignments:", err);
-    return res.status(500).json({ error: "Server error fetching assignments" });
-  }
-});
+    const header = req.headers.authorization || "";
+    const token = header.startsWith("Bearer ") ? header.split(" ")[1] : null;
 
-/* -------------------------------------------------------------------------- */
-/* 🧾 POST — Redeem Access Code (Protected)                                   */
-/* -------------------------------------------------------------------------- */
-router.post("/redeem", verifyChildToken, async (req, res) => {
-  try {
-    const { accessCode, subject, providerUrl } = req.body;
-    if (!accessCode || !subject)
-      return res.status(400).json({ error: "Missing required fields" });
-
-    // ✅ Check if already redeemed
-    const existing = await prisma.childAssignment.findFirst({
-      where: { childId: req.childId, accessCode },
-    });
-
-    if (existing) {
-      return res.json({
-        success: true,
-        message: "Already redeemed",
-        assignment: existing,
-      });
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Missing student token" });
     }
 
-    const assignment = await prisma.childAssignment.create({
-      data: {
-        childId: req.childId,
-        subject,
-        accessCode,
-        providerUrl: providerUrl || "",
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!decoded || decoded.role !== "STUDENT") {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized as student" });
+    }
+
+    // Attach to request for later use
+    req.student = decoded;
+    next();
+  } catch (err) {
+    console.error("❌ Student auth error:", err.message);
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid or expired token" });
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 📚 GET /api/student/books  → list student's books                          */
+/* -------------------------------------------------------------------------- */
+router.get("/", requireStudentAuth, async (req, res) => {
+  try {
+    const studentId = req.student.id;
+
+    const books = await prisma.studentBook.findMany({
+      where: {
+        studentId,
+        status: "active",
+      },
+      orderBy: {
+        createdAt: "desc",
       },
     });
 
     return res.json({
       success: true,
-      message: "Access code redeemed successfully",
-      assignment,
+      data: books.map((b) => ({
+        id: b.id,
+        isbn: b.isbn,
+        title: b.title,
+        provider: b.provider,
+        providerLink: b.providerLink,
+        // we NEVER expose raw code to UI
+        expiresAt: b.expiresAt,
+        status: b.status,
+      })),
     });
   } catch (err) {
-    console.error("❌ Error redeeming code:", err);
-    return res.status(500).json({ error: "Server error redeeming code" });
-  }
-});
-
-/* -------------------------------------------------------------------------- */
-/* ❌ DELETE — Remove Redeemed Book (Protected)                                */
-/* -------------------------------------------------------------------------- */
-router.delete("/:id", verifyChildToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const assignment = await prisma.childAssignment.findUnique({
-      where: { id },
+    console.error("❌ Error fetching student books:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error fetching student books",
     });
-
-    if (!assignment)
-      return res.status(404).json({ error: "Assignment not found" });
-
-    if (assignment.childId !== req.childId)
-      return res.status(403).json({ error: "Forbidden" });
-
-    await prisma.childAssignment.delete({ where: { id } });
-    return res.json({ success: true, message: "Assignment deleted" });
-  } catch (err) {
-    console.error("❌ Error deleting assignment:", err);
-    return res.status(500).json({ error: "Server error deleting assignment" });
   }
 });
 

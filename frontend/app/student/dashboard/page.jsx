@@ -8,32 +8,32 @@ export default function StudentDashboard() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState("books");
-  const [childName, setChildName] = useState("");
+  const [studentName, setStudentName] = useState("Student");
 
   /* -------------------------------------------------------------------------- */
-  /* ✅ On Mount: Verify login and extract student name                         */
+  /* ✅ On Mount: Verify new student token + load student name                 */
   /* -------------------------------------------------------------------------- */
   useEffect(() => {
+    // ✔ New student token
     const token =
-      localStorage.getItem("bba_child_token") ||
-      document.cookie
-        .split("; ")
-        .find((r) => r.startsWith("bba_child_token="))
-        ?.split("=")[1];
+      typeof window !== "undefined"
+        ? localStorage.getItem("bba_student_token")
+        : null;
 
     if (!token) {
       router.replace("/student/login?next=/student/dashboard");
       return;
     }
 
-    // Try reading cached login info from localStorage if available
-    const storedChild = localStorage.getItem("bba_child_info");
-    if (storedChild) {
-      const child = JSON.parse(storedChild);
-      setChildName(child.firstName || child.username || "Student");
-    } else {
-      // fallback default
-      setChildName("Student");
+    // ✔ Load new student info format
+    const stored = localStorage.getItem("bba_student_info");
+    if (stored) {
+      try {
+        const stu = JSON.parse(stored);
+        setStudentName(stu.fullName || stu.email || "Student");
+      } catch {
+        setStudentName("Student");
+      }
     }
 
     setReady(true);
@@ -48,23 +48,26 @@ export default function StudentDashboard() {
   }
 
   /* -------------------------------------------------------------------------- */
-  /* 🧭 Handlers                                                                */
+  /* 🧭 Navigation & Actions                                                    */
   /* -------------------------------------------------------------------------- */
   const goBooks = () => router.push("/student/books");
-  const comingSoon = () =>
-    toast("🚧 Coming Soon ✨", { icon: "⏳", duration: 2200 });
+
+  const comingSoon = () => {
+    toast("🚧 Coming Soon ✨", { icon: "⏳", duration: 2000 });
+  };
 
   function handleLogout() {
-    localStorage.removeItem("bba_child_token");
-    localStorage.removeItem("bba_child_info");
-    document.cookie =
-      "bba_child_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+    // ✔ Remove new student tokens + data
+    localStorage.removeItem("bba_student_token");
+    localStorage.removeItem("bba_student_info");
+    localStorage.removeItem("bba_student_name");
+
     toast.success("👋 Logged out", { duration: 2000 });
     router.replace("/student/login");
   }
 
   /* -------------------------------------------------------------------------- */
-  /* 🧱 Page Layout                                                             */
+  /* 🎨 UI Rendering                                                            */
   /* -------------------------------------------------------------------------- */
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-100 py-8 px-4 flex flex-col items-center">
@@ -73,7 +76,7 @@ export default function StudentDashboard() {
       <div className="w-full max-w-6xl flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-indigo-800">
-            Welcome back, {childName} 👋
+            Welcome back, {studentName} 👋
           </h1>
           <p className="text-gray-600 text-sm">Explore your learning dashboard</p>
         </div>
@@ -94,6 +97,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
+      {/* 📘 BOOKS SECTION */}
       <Section
         title="📘 My Book Resources"
         open={open === "books"}
@@ -102,6 +106,7 @@ export default function StudentDashboard() {
         <Card title="Open Book Resources" icon="📖" onClick={goBooks} />
       </Section>
 
+      {/* 🧠 SKILLS SECTION */}
       <Section
         title="🧠 Skills Development"
         open={open === "skills"}
@@ -112,6 +117,7 @@ export default function StudentDashboard() {
         <Card title="Entrepreneurship" icon="🚀" onClick={comingSoon} />
       </Section>
 
+      {/* 👥 COMMUNITY SECTION */}
       <Section
         title="💬 Community"
         open={open === "community"}
@@ -127,6 +133,7 @@ export default function StudentDashboard() {
 /* -------------------------------------------------------------------------- */
 /* 🔹 Reusable Components                                                     */
 /* -------------------------------------------------------------------------- */
+
 function Section({ title, open, onToggle, children }) {
   return (
     <div className="w-full max-w-6xl mb-4 border border-gray-200 rounded-xl bg-white shadow-sm">

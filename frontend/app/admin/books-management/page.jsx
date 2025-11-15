@@ -1,39 +1,26 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { FaCloudUploadAlt, FaBookOpen, FaSignOutAlt } from "react-icons/fa";
-import toast from "react-hot-toast";
+import { FaCloudUploadAlt, FaBookOpen } from "react-icons/fa";
 
 export default function BooksManagementDashboard() {
   const router = useRouter();
 
-  /* -------------------------------------------------------------------------- */
-  /* 🔐 Logout Function */
-  /* -------------------------------------------------------------------------- */
-  const handleLogout = () => {
-    localStorage.removeItem("adminToken");
-    toast.success("👋 Logged out successfully");
-    router.replace("/admin/login");
-  };
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex flex-col items-center justify-center p-8 relative">
-      {/* 🔐 Logout Button (Top Right) */}
-      <button
-        onClick={handleLogout}
-        className="absolute top-6 right-8 flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600 transition"
-      >
-        <FaSignOutAlt /> Logout
-      </button>
 
-      {/* Title Section */}
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold text-blue-700 mb-3">
-          📚 Books Management
+      {/* ------------------------------------------------------------- */}
+      {/* 🎨 Header (Updated — Logout Removed)                          */}
+      {/* ------------------------------------------------------------- */}
+      <div className="flex items-center justify-between w-full max-w-4xl mb-10">
+        <h1 className="text-3xl font-bold text-indigo-800 dark:text-indigo-400">
+          Books Management
         </h1>
-        <p className="text-gray-600 text-lg">
-          Manage your digital library easily — upload, edit, and view books.
-        </p>
       </div>
+
+      {/* Subtitle */}
+      <p className="text-gray-600 text-lg mb-10 text-center">
+        Manage your digital library easily — upload, edit, and view books.
+      </p>
 
       {/* Button Container */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 w-full max-w-3xl">

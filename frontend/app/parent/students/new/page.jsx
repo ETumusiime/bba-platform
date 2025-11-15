@@ -23,7 +23,7 @@ export default function RegisterStudentPage() {
   const [city, setCity] = useState("");
   const [neighbourhood, setNeighbourhood] = useState("");
 
-  const [showCreds, setShowCreds] = useState(null); // { username, tempPassword }
+  const [showCreds, setShowCreds] = useState(null);
 
   const countries = useMemo(() => Object.keys(locationData), []);
   const cities = useMemo(() => Object.keys(locationData[country] || {}), [country]);
@@ -33,7 +33,7 @@ export default function RegisterStudentPage() {
   );
 
   /* -------------------------------------------------------------------------- */
-  /* 🚀 Form submission                                                         */
+  /* 🚀 Submission handler                                                      */
   /* -------------------------------------------------------------------------- */
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -43,7 +43,7 @@ export default function RegisterStudentPage() {
       return;
     }
 
-    // ✅ Password validation (international standard)
+    // Strong password check
     const strongPassword = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
     if (!strongPassword.test(password)) {
       toast.error(
@@ -52,70 +52,65 @@ export default function RegisterStudentPage() {
       return;
     }
 
-    const [firstName, ...rest] = fullName.trim().split(" ");
-    const lastName = rest.join(" ") || "-";
-
     try {
       const token = localStorage.getItem("bba_parent_token");
 
       if (!token) {
-        console.error("🚫 No parent token found in localStorage");
-        toast.error("Parent not authenticated. Please log in again.");
+        toast.error("Please log in again.");
         router.push("/login");
         return;
       }
 
-      const API = process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:5000";
+      const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-      const res = await fetch(`${API}/api/parent/children`, {
+      const res = await fetch(`${API}/api/parent/students`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          firstName,
-          lastName,
+          fullName,
           email,
-          dob,
-          schoolYear: Number(schoolYear),
-          whatsapp_phone: whatsapp || undefined,
-          address: { country, city, neighbourhood },
-          password, // ✅ include password
+          password,
+          dateOfBirth: dob,
+          schoolYear: String(schoolYear),
+          whatsapp,
+          country,
+          city,
+          neighbourhood,
         }),
       });
 
-      const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error(
-          "Backend returned invalid response. Check backend server (port 5000)."
-        );
+      const json = await res.json();
+
+      if (!json.success) {
+        toast.error(json.message || "Failed to create student");
+        return;
       }
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to create student");
-      }
-
-      // ✅ CLEAR FORM FIELDS after success
+      /* ---------------------------------------------------------------------- */
+      /* 🧹 Clear form on success                                               */
+      /* ---------------------------------------------------------------------- */
       setFullName("");
       setDob("");
       setEmail("");
       setPassword("");
-      setSchoolYear(1);
       setWhatsapp("");
       setCountry("Uganda");
       setCity("");
       setNeighbourhood("");
+      setSchoolYear(1);
 
-      // ✅ Continue as normal
-      setShowCreds(data.credentials);
-      toast.success("✅ Student account created successfully!");
+      setShowCreds({
+        username: json.data.email,
+        tempPassword: password,
+      });
+
+      toast.success("Student created successfully!");
     } catch (err) {
       console.error("❌ Registration error:", err);
-      toast.error(err.message || "Something went wrong.");
+      toast.error("Something went wrong. Try again.");
     }
   };
 
@@ -132,9 +127,7 @@ export default function RegisterStudentPage() {
       >
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Full Name *
-            </label>
+            <label className="block text-sm font-medium mb-1">Full Name *</label>
             <input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
@@ -144,9 +137,7 @@ export default function RegisterStudentPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Date of Birth *
-            </label>
+            <label className="block text-sm font-medium mb-1">Date of Birth *</label>
             <input
               type="date"
               value={dob}
@@ -156,9 +147,7 @@ export default function RegisterStudentPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Email (Username) *
-            </label>
+            <label className="block text-sm font-medium mb-1">Email (Username) *</label>
             <div className="flex gap-2">
               <input
                 type="email"
@@ -179,9 +168,7 @@ export default function RegisterStudentPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              School Year *
-            </label>
+            <label className="block text-sm font-medium mb-1">School Year *</label>
             <select
               value={schoolYear}
               onChange={(e) => setSchoolYear(e.target.value)}
@@ -195,7 +182,7 @@ export default function RegisterStudentPage() {
             </select>
           </div>
 
-          {/* ✅ Password field with toggle */}
+          {/* Password */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-1">Password *</label>
             <div className="relative">
@@ -215,9 +202,6 @@ export default function RegisterStudentPage() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Must be at least 8 characters, including letters and numbers.
-            </p>
           </div>
 
           <div>
@@ -233,7 +217,7 @@ export default function RegisterStudentPage() {
           </div>
         </div>
 
-        {/* Location Fields */}
+        {/* Location */}
         <div className="grid md:grid-cols-3 gap-4 pt-2">
           <div>
             <label className="block text-sm font-medium mb-1">Country *</label>
@@ -276,9 +260,7 @@ export default function RegisterStudentPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Neighbourhood *
-            </label>
+            <label className="block text-sm font-medium mb-1">Neighbourhood *</label>
             <select
               value={neighbourhood}
               onChange={(e) => setNeighbourhood(e.target.value)}
@@ -307,7 +289,7 @@ export default function RegisterStudentPage() {
         </div>
       </form>
 
-      {/* ✅ Enhanced Success Modal */}
+      {/* SUCCESS MODAL */}
       {showCreds && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md text-center">
@@ -319,19 +301,14 @@ export default function RegisterStudentPage() {
             </p>
 
             <div className="bg-gray-50 rounded-lg p-4 mb-4 text-sm">
-              <div>
-                <strong>Username:</strong> {showCreds.username}
-              </div>
-              <div>
-                <strong>Password:</strong> {showCreds.tempPassword}
-              </div>
+              <div><strong>Username:</strong> {showCreds.username}</div>
+              <div><strong>Password:</strong> {showCreds.tempPassword}</div>
               <p className="text-xs text-gray-500 mt-1">
                 Shown once — please save these now.
               </p>
             </div>
 
             <div className="flex flex-col gap-2">
-              {/* ✅ Pass student email to login page */}
               <a
                 href={`/student/login?email=${encodeURIComponent(showCreds.username)}`}
                 className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
@@ -342,10 +319,6 @@ export default function RegisterStudentPage() {
               <button
                 onClick={() => {
                   setShowCreds(null);
-                  setFullName("");
-                  setDob("");
-                  setEmail("");
-                  setPassword("");
                   toast.success("Ready to register another student!");
                 }}
                 className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700"
@@ -353,7 +326,6 @@ export default function RegisterStudentPage() {
                 Register Another Student
               </button>
 
-              {/* ✅ Corrected dashboard link */}
               <button
                 onClick={() => router.push("/dashboard")}
                 className="px-4 py-2 rounded-md border hover:bg-gray-100"

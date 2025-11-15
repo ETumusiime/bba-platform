@@ -1,82 +1,92 @@
 // backend/routes/studentAuthRoutes.js
 import express from "express";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-import pool from "../db.js";
 
-dotenv.config();
-
+const prisma = new PrismaClient();
 const router = express.Router();
 
-/**
- * @route   POST /api/student/login
- * @desc    Student login (authenticate student and issue token)
- * @access  Public
- */
+/* -------------------------------------------------------------------------- */
+/* 🔐 Helper: Sign JWT for student                                             */
+/* -------------------------------------------------------------------------- */
+function signToken(student) {
+  return jwt.sign(
+    {
+      id: student.id,
+      role: "STUDENT",
+      email: student.email,
+      fullName: student.fullName,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 🧑‍🎓 POST /api/student/login                                                */
+/* -------------------------------------------------------------------------- */
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  console.log("🎓 Student login attempt:", email);
-
-  // ✅ Basic validation
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
-  }
-
   try {
-    // 🔍 Find student by email (case-insensitive)
-    const { rows } = await pool.query(
-      "SELECT * FROM children WHERE LOWER(email) = LOWER($1) LIMIT 1",
-      [email]
-    );
+    const { email, password } = req.body || {};
 
-    if (rows.length === 0) {
+    console.log("🎓 Student login attempt:", email);
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    // 🔍 Find student in Prisma table
+    const student = await prisma.student.findUnique({
+      where: { email },
+    });
+
+    if (!student) {
       console.warn("⚠️ No student found with email:", email);
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid login credentials",
+      });
     }
 
-    const child = rows[0];
-    console.log("✅ Found student:", child.email);
+    // 🔑 Compare password
+    const valid = await bcrypt.compare(password, student.passwordHash);
 
-    if (!child.password_hash) {
-      console.warn("⚠️ No password hash found for:", email);
-      return res.status(401).json({ error: "Account missing password" });
+    if (!valid) {
+      console.warn("❌ Invalid password for:", email);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid login credentials",
+      });
     }
 
-    // 🔑 Compare provided password with stored hash
-    const isMatch = await bcrypt.compare(password, child.password_hash);
-    console.log("🔍 bcrypt.compare →", isMatch ? "✅ Match" : "❌ Mismatch");
+    // 🎫 Issue token
+    const token = signToken(student);
 
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
+    console.log("🎫 Issued student token:", token.slice(0, 25) + "...");
 
-    // 🎟️ Create JWT token for student
-    const token = jwt.sign(
-      { id: child.id, email: child.email, role: "CHILD" },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    console.log("🎫 Issued child token (first 30 chars):", token.slice(0, 30) + "...");
-
-    // ✅ Success response
-    res.json({
+    return res.json({
       success: true,
-      message: "✅ Login successful",
-      token,
-      child: {
-        id: child.id,
-        first_name: child.first_name,
-        last_name: child.last_name,
-        email: child.email,
-        school_year: child.school_year,
+      message: "Student logged in successfully",
+      data: {
+        token,
+        student: {
+          id: student.id,
+          fullName: student.fullName,
+          email: student.email,
+          schoolYear: student.schoolYear,
+        },
       },
     });
   } catch (err) {
     console.error("❌ Student login error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({
+      success: false,
+      message: "Server error during login",
+    });
   }
 });
 

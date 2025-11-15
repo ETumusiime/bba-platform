@@ -1,254 +1,143 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function StudentBooksPage() {
   const router = useRouter();
-  const [accessCode, setCode] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [library, setLibrary] = useState([]);
-  const [page, setPage] = useState(0); // current page
-  const perPage = 3; // 3 cards per view
+  const [loading, setLoading] = useState(true);
+  const [books, setBooks] = useState([]);
 
-  /* -------------------------------------------------------------------------- */
-  /* 📚 Fetch Redeemed Books                                                    */
-  /* -------------------------------------------------------------------------- */
+  const API =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+  /* ------------------------------------------------------------------------ */
+  /* 🔐 STEP 1 — Check login + load books                                      */
+  /* ------------------------------------------------------------------------ */
   useEffect(() => {
     const token =
-      localStorage.getItem("bba_child_token") ||
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("bba_child_token="))
-        ?.split("=")[1];
+      typeof window !== "undefined"
+        ? localStorage.getItem("bba_student_token")
+        : null;
 
     if (!token) {
-      toast.error("Please login again", { duration: 2000 });
+      toast.error("Please log in again");
       router.replace("/student/login?next=/student/books");
       return;
     }
 
-    fetch("http://localhost:5000/api/student/books", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setLibrary(Array.isArray(data) ? data : []))
-      .catch(() => setLibrary([]));
-  }, [router]);
+    async function loadBooks() {
+      try {
+        const res = await fetch(`${API}/api/student/books`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-  /* -------------------------------------------------------------------------- */
-  /* 🔑 Handle Redeem Flow                                                      */
-  /* -------------------------------------------------------------------------- */
-  async function handleRedeem(e) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const code = accessCode.trim().toUpperCase();
-      if (!code) throw new Error("Please enter an access code");
-
-      const validateRes = await fetch(
-        `http://localhost:5000/api/cambridge/validate?code=${code}`
-      );
-      const validation = await validateRes.json();
-
-      if (!validateRes.ok || !validation.valid)
-        throw new Error(validation.error || "Invalid or expired access code");
-
-      const { subject, providerUrl } = validation;
-
-      const token =
-        localStorage.getItem("bba_child_token") ||
-        document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("bba_child_token="))
-          ?.split("=")[1];
-
-      if (!token) throw new Error("Not logged in");
-
-      const redeemRes = await fetch(
-        "http://localhost:5000/api/student/books/redeem",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ accessCode: code, subject, providerUrl }),
+        const json = await res.json();
+        if (!json.success) {
+          throw new Error(json.message || "Failed to load books");
         }
-      );
 
-      const redeemData = await redeemRes.json();
-
-      if (!redeemRes.ok || !redeemData.success)
-        throw new Error(redeemData.error || "Failed to redeem book");
-
-      const { assignment } = redeemData;
-
-      toast.success(`✅ ${subject} unlocked`, { duration: 2000 });
-      setLibrary((prev) => [assignment, ...prev]);
-      setCode(""); // clear input
-      router.replace(
-        `/student/books/viewer?ticket=${assignment.accessCode}&title=${assignment.subject}`
-      );
-    } catch (err) {
-      toast.error(err.message || "Failed to unlock", { duration: 2500 });
-    } finally {
-      setLoading(false);
+        setBooks(json.data || []);
+      } catch (err) {
+        toast.error(err.message || "Could not load books");
+      } finally {
+        setLoading(false);
+      }
     }
+
+    loadBooks();
+  }, [API, router]);
+
+  /* ------------------------------------------------------------------------ */
+  /* 📖 STEP 2 — Open the Cambridge/Mallory/Planet Book View                   */
+  /* ------------------------------------------------------------------------ */
+  function openBook(book) {
+    if (!book.providerLink) {
+      toast.error("Book not ready yet. Try again later.");
+      return;
+    }
+    window.open(book.providerLink, "_blank", "noopener,noreferrer");
   }
 
-  /* -------------------------------------------------------------------------- */
-  /* ❌ Delete Redeemed Book (Backend + UI)                                    */
-  /* -------------------------------------------------------------------------- */
-  const handleDelete = async (id) => {
-    try {
-      const token =
-        localStorage.getItem("bba_child_token") ||
-        document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("bba_child_token="))
-          ?.split("=")[1];
-
-      if (!token) throw new Error("Not logged in");
-
-      const res = await fetch(`http://localhost:5000/api/student/books/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to delete");
-
-      setLibrary((prev) => prev.filter((b) => b.id !== id));
-      toast.success("Book removed from your library", { duration: 1500 });
-    } catch (err) {
-      console.error("❌ Delete error:", err);
-      toast.error(err.message || "Error deleting book", { duration: 2000 });
-    }
-  };
-
-  /* -------------------------------------------------------------------------- */
-  /* 📄 Pagination logic                                                        */
-  /* -------------------------------------------------------------------------- */
-  const totalPages = Math.ceil(library.length / perPage);
-  const start = page * perPage;
-  const currentBooks = library.slice(start, start + perPage);
-
-  /* -------------------------------------------------------------------------- */
-  /* 🧱 Page Layout                                                             */
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
+  /* 🎨 STEP 3 — UI Rendering                                                  */
+  /* ------------------------------------------------------------------------ */
   return (
-    <main className="min-h-screen flex flex-col items-center bg-gray-50 p-6">
+    <main className="min-h-screen bg-gray-50 py-8 px-4 flex justify-center">
       <Toaster position="top-center" />
 
-      {/* 🔑 Redeem Section */}
-      <div className="w-full max-w-xl bg-white rounded-xl shadow p-6 mb-8">
-        <h1 className="text-2xl font-bold text-indigo-800 mb-5">
-          Redeem a New Book
-        </h1>
-        <form onSubmit={handleRedeem} className="flex flex-col gap-4">
-          <input
-            className="border rounded p-3"
-            placeholder="Enter Access Code (e.g. CUP-ENG-001)"
-            value={accessCode}
-            onChange={(e) => setCode(e.target.value)}
-            required
-          />
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-md p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-indigo-700">
+            My Book Resources
+          </h1>
           <button
-            type="submit"
-            disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded p-3"
+            onClick={() => router.push("/student/dashboard")}
+            className="px-4 py-2 text-sm rounded-md border hover:bg-gray-100"
           >
-            {loading ? "Unlocking…" : "Open Book"}
+            ⬅ Back to Dashboard
           </button>
-        </form>
-        <p className="text-sm text-gray-500 mt-3 text-center">
-          Input an access code here to access and view your book.
-        </p>
-      </div>
+        </div>
 
-      {/* 📚 Library Section */}
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow p-6">
-        <h2 className="text-xl font-bold text-indigo-800 mb-4">
-          My Redeemed Books
-        </h2>
+        {/* Info Banner */}
+        <div className="mb-6 text-sm text-gray-600 bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3">
+          Your books will appear automatically once your parent&apos;s payment is
+          confirmed and the school links your digital licenses.
+        </div>
 
-        {library.length === 0 ? (
-          <p className="text-gray-500 text-center">
-            You haven’t redeemed any books yet.
-          </p>
+        {/* Books */}
+        {loading ? (
+          <p className="text-center text-gray-500 py-8">Loading books…</p>
+        ) : books.length === 0 ? (
+          <div className="text-center text-gray-600 py-10">
+            <p className="mb-2">
+              You do not have any digital books yet.
+            </p>
+            <p className="text-sm text-gray-500">
+              If you expected to see books, contact your parent or support.
+            </p>
+          </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {currentBooks.map((book) => (
-                <div
-                  key={book.id}
-                  className="relative border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer transition"
-                >
-                  {/* ❌ Delete button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(book.id);
-                    }}
-                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl"
-                    title="Remove book"
-                  >
-                    ×
-                  </button>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+            {books.map((b) => (
+              <div
+                key={b.id}
+                className="border rounded-xl p-4 bg-gradient-to-br from-white to-indigo-50 flex flex-col justify-between"
+              >
+                <div className="mb-3">
+                  <div className="text-xs text-gray-400 mb-1">{b.isbn}</div>
+                  <h2 className="font-semibold text-indigo-800 text-sm">
+                    {b.title}
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Provider: {b.provider || "Digital Reader"}
+                  </p>
 
-                  {/* 📖 Book card */}
-                  <div
-                    onClick={() =>
-                      router.push(
-                        `/student/books/viewer?ticket=${book.accessCode}&title=${book.subject}`
-                      )
-                    }
-                  >
-                    <h3 className="text-indigo-700 font-semibold">
-                      {book.subject}
-                    </h3>
-                    <p className="text-gray-600 text-sm mt-1">
-                      Code: {book.accessCode}
+                  {b.expiresAt && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Expires:{" "}
+                      {new Date(b.expiresAt).toLocaleDateString("en-GB")}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(book.createdAt).toLocaleString()}
-                    </p>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex justify-center gap-4 mt-6">
                 <button
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => p - 1)}
-                  className={`px-4 py-2 rounded ${
-                    page === 0
-                      ? "bg-gray-200 text-gray-400"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700"
-                  }`}
+                  onClick={() => openBook(b)}
+                  className="mt-2 w-full rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 font-medium"
                 >
-                  ← Previous
-                </button>
-                <button
-                  disabled={page >= totalPages - 1}
-                  onClick={() => setPage((p) => p + 1)}
-                  className={`px-4 py-2 rounded ${
-                    page >= totalPages - 1
-                      ? "bg-gray-200 text-gray-400"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700"
-                  }`}
-                >
-                  Next →
+                  Open Book
                 </button>
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
+
+        {/* Future Manual Input Section */}
+        <div className="mt-8 border-t pt-4 text-xs text-gray-500">
+          Manual access code input will be added for special cases.
+        </div>
       </div>
     </main>
   );
