@@ -36,7 +36,31 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* -------------------------------------------------------------------------- */
-/* 🟢  POST /api/admin/books/upload — Upload or Update Book Info + Image       */
+/* 🟢  NEW: GET /api/admin/books  — List All Books                            */
+/* -------------------------------------------------------------------------- */
+router.get("/", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, isbn, title, subject, year, category, cover_url
+       FROM books
+       ORDER BY title ASC`
+    );
+
+    return res.json({
+      success: true,
+      books: result.rows,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching admin books:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load books",
+    });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* 🟢 POST /api/admin/books/upload — Upload or Update Book Info + Image       */
 /* -------------------------------------------------------------------------- */
 router.post("/upload", upload.single("cover"), async (req, res) => {
   try {
@@ -60,8 +84,10 @@ router.post("/upload", upload.single("cover"), async (req, res) => {
 
     console.log("📘 Upload request:", { isbn, title, category, imageUrl });
 
-    // 🧠 Upsert main book record
-    const existing = await pool.query("SELECT id FROM books WHERE isbn = $1", [isbn]);
+    // Upsert main book record
+    const existing = await pool.query("SELECT id FROM books WHERE isbn = $1", [
+      isbn,
+    ]);
 
     if (existing.rows.length > 0) {
       await pool.query(
@@ -78,7 +104,6 @@ router.post("/upload", upload.single("cover"), async (req, res) => {
       );
     }
 
-    // 🧩 Prepare safe arrays for features & contents
     const featuresArr = features
       ? features.split(",").map((f) => f.trim())
       : [];
@@ -86,8 +111,10 @@ router.post("/upload", upload.single("cover"), async (req, res) => {
       ? contents.split(",").map((c) => c.trim())
       : [];
 
-    // 🧠 Upsert book details
-    const detailExists = await pool.query("SELECT id FROM book_details WHERE isbn = $1", [isbn]);
+    const detailExists = await pool.query(
+      "SELECT id FROM book_details WHERE isbn = $1",
+      [isbn]
+    );
 
     if (detailExists.rows.length > 0) {
       await pool.query(
@@ -107,22 +134,23 @@ router.post("/upload", upload.single("cover"), async (req, res) => {
     res.json({ message: "✅ Book uploaded successfully", isbn, imageUrl });
   } catch (err) {
     console.error("❌ Upload error:", err.message, err.stack);
-    res.status(500).json({ message: "Failed to upload book", error: err.message });
+    res.status(500).json({
+      message: "Failed to upload book",
+      error: err.message,
+    });
   }
 });
 
 /* -------------------------------------------------------------------------- */
-/* 🔴  DELETE /api/admin/books/:isbn — Delete Book + Metadata                  */
+/* 🔴 DELETE /api/admin/books/:isbn — Delete Book + Metadata                  */
 /* -------------------------------------------------------------------------- */
 router.delete("/:isbn", async (req, res) => {
   try {
     const { isbn } = req.params;
 
-    // Delete from database
     await pool.query("DELETE FROM books WHERE isbn = $1", [isbn]);
     await pool.query("DELETE FROM book_details WHERE isbn = $1", [isbn]);
 
-    // Delete image file if exists
     const folders = await fs.readdir(BASE_FOLDER);
     for (const folder of folders) {
       const filePath = path.join(BASE_FOLDER, folder, `${isbn}.jpg`);
@@ -136,7 +164,10 @@ router.delete("/:isbn", async (req, res) => {
     res.json({ message: "✅ Book deleted successfully" });
   } catch (err) {
     console.error("❌ Delete error:", err.message, err.stack);
-    res.status(500).json({ message: "Failed to delete book", error: err.message });
+    res.status(500).json({
+      message: "Failed to delete book",
+      error: err.message,
+    });
   }
 });
 

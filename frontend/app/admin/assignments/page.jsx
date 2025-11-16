@@ -10,11 +10,10 @@ export default function AdminAssignmentsListPage() {
   const [assignments, setAssignments] = useState([]);
   const [search, setSearch] = useState("");
 
-  const API =
-    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   /* -------------------------------------------------------------------------- */
-  /* 🔐 Auth Check (Admin Only)                                                */
+  /* 🔐 ADMIN AUTH CHECK                                                        */
   /* -------------------------------------------------------------------------- */
   useEffect(() => {
     const token = localStorage.getItem("bba_admin_token");
@@ -27,16 +26,14 @@ export default function AdminAssignmentsListPage() {
   }, []);
 
   /* -------------------------------------------------------------------------- */
-  /* 📦 Load Assigned Books                                                    */
+  /* 📦 LOAD ALL STUDENT → BOOK ASSIGNMENTS                                     */
   /* -------------------------------------------------------------------------- */
   async function loadAssignments() {
     try {
       const token = localStorage.getItem("bba_admin_token");
 
       const res = await fetch(`${API}/api/admin/student-books`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const json = await res.json();
@@ -45,7 +42,7 @@ export default function AdminAssignmentsListPage() {
 
       setAssignments(json.data || []);
     } catch (err) {
-      console.error(err);
+      console.error("Assignment load error:", err);
       toast.error("Failed to load assignments");
     } finally {
       setLoading(false);
@@ -53,35 +50,36 @@ export default function AdminAssignmentsListPage() {
   }
 
   /* -------------------------------------------------------------------------- */
-  /* 🔍 Filter Assignments                                                     */
+  /* 🔍 FILTER ASSIGNMENTS (based on actual backend fields)                     */
   /* -------------------------------------------------------------------------- */
   const filtered = assignments.filter((a) => {
     const q = search.toLowerCase();
+
     return (
-      a.studentName?.toLowerCase().includes(q) ||
-      a.email?.toLowerCase().includes(q) ||
-      a.title?.toLowerCase().includes(q) ||
-      a.isbn?.toLowerCase().includes(q)
+      a.student.fullName.toLowerCase().includes(q) ||
+      a.student.email.toLowerCase().includes(q) ||
+      a.book.title.toLowerCase().includes(q) ||
+      a.book.isbn.toLowerCase().includes(q)
     );
   });
 
   /* -------------------------------------------------------------------------- */
-  /* 🎨 UI Rendering                                                            */
+  /* 🎨 RENDER UI                                                                */
   /* -------------------------------------------------------------------------- */
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <Toaster position="top-center" />
 
-      <div className="max-w-6xl mx-auto bg-white shadow-md rounded-xl p-6">
+      <div className="max-w-6xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-indigo-700">
+          <h1 className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
             Assigned Student Books
           </h1>
 
           <button
             onClick={() => router.push("/admin/assign-code")}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md"
           >
             ➕ Assign New Code
           </button>
@@ -94,14 +92,14 @@ export default function AdminAssignmentsListPage() {
             placeholder="Search by student, book, or ISBN..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full border rounded-md px-4 py-2"
+            className="w-full border px-4 py-2 rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
           />
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 text-sm">
-            <thead className="bg-gray-100 text-gray-600 uppercase text-xs">
+          <table className="min-w-full border border-gray-200 dark:border-gray-700 text-sm">
+            <thead className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-xs">
               <tr>
                 <th className="p-3 text-left">Student</th>
                 <th className="p-3 text-left">Email</th>
@@ -116,49 +114,38 @@ export default function AdminAssignmentsListPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="text-center py-6 text-gray-500"
-                  >
+                  <td colSpan="7" className="text-center py-6 text-gray-500 dark:text-gray-400">
                     Loading…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="text-center py-6 text-gray-500"
-                  >
+                  <td colSpan="7" className="text-center py-6 text-gray-500 dark:text-gray-400">
                     No assigned books found.
                   </td>
                 </tr>
               ) : (
                 filtered.map((a) => (
-                  <tr
-                    key={a.id}
-                    className="border-t hover:bg-gray-50"
-                  >
-                    <td className="p-3">{a.studentName}</td>
-                    <td className="p-3 text-gray-600">{a.email}</td>
-                    <td className="p-3">{a.title}</td>
-                    <td className="p-3">{a.isbn}</td>
-                    <td className="p-3 font-mono text-xs">
-                      {a.accessCodeRaw}
+                  <tr key={a.id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="p-3">{a.student.fullName}</td>
+                    <td className="p-3 text-gray-600 dark:text-gray-300">
+                      {a.student.email}
                     </td>
-                    <td className="p-3 text-blue-600 underline cursor-pointer">
-                      <a
-                        href={a.providerLink}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Open
-                      </a>
+                    <td className="p-3">{a.book.title}</td>
+                    <td className="p-3">{a.book.isbn}</td>
+                    <td className="p-3 font-mono text-xs">{a.accessCode}</td>
+                    <td className="p-3 text-blue-600 underline cursor-pointer dark:text-blue-400">
+                      {a.providerLink ? (
+                        <a href={a.providerLink} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="p-3">
                       {a.expiresAt
-                        ? new Date(a.expiresAt).toLocaleDateString(
-                            "en-GB"
-                          )
+                        ? new Date(a.expiresAt).toLocaleDateString("en-GB")
                         : "N/A"}
                     </td>
                   </tr>

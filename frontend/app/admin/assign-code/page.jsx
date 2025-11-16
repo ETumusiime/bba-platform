@@ -1,230 +1,205 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import toast, { Toaster } from "react-hot-toast";
 
-/* -------------------------------------------------------------------------- */
-/* CONFIG                                                                     */
-/* -------------------------------------------------------------------------- */
-const API =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-/* -------------------------------------------------------------------------- */
-/* MAIN PAGE                                                                  */
-/* -------------------------------------------------------------------------- */
-export default function AdminAssignCodePage() {
+export default function AdminAssignAccessCodePage() {
   const router = useRouter();
 
   const [students, setStudents] = useState([]);
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [selectedBook, setSelectedBook] = useState(null);
+  const [studentId, setStudentId] = useState("");
+  const [bookId, setBookId] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [providerLink, setProviderLink] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
 
-  /* ------------------------------------------------------------------------ */
-  /* Load Students + Books                                                    */
-  /* ------------------------------------------------------------------------ */
+  /* --------------------------------------------------------------------- */
+  /* 🔐 Load Students + Books                                              */
+  /* --------------------------------------------------------------------- */
   useEffect(() => {
-    async function load() {
+    async function loadData() {
       try {
-        const [sRes, bRes] = await Promise.all([
-          fetch(`${API}/api/admin/student-books/students`),
-          fetch(`${API}/api/admin/student-books/books`),
+        const token = localStorage.getItem("bba_admin_token");
+
+        if (!token) {
+          toast.error("Not authenticated.");
+          router.push("/admin/login");
+          return;
+        }
+
+        const [studentsRes, booksRes] = await Promise.all([
+          axios.get(`${API}/api/admin/students`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${API}/api/admin/books`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
-        const sJson = await sRes.json();
-        const bJson = await bRes.json();
-
-        if (!sJson.success || !bJson.success)
-          throw new Error("Failed to load lists");
-
-        setStudents(sJson.data);
-        setBooks(bJson.data);
+        setStudents(studentsRes.data.students || []);
+        setBooks(booksRes.data.books || []);
       } catch (err) {
-        toast.error(err.message);
+        console.error("Load error:", err);
+        toast.error("Failed to fetch students or books.");
       } finally {
         setLoading(false);
       }
     }
 
-    load();
-  }, []);
+    loadData();
+  }, [router]);
 
-  /* ------------------------------------------------------------------------ */
-  /* Submit Assignment                                                         */
-  /* ------------------------------------------------------------------------ */
+  /* --------------------------------------------------------------------- */
+  /* 🔐 Submit Assignment                                                   */
+  /* --------------------------------------------------------------------- */
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!selectedStudent || !selectedBook)
-      return toast.error("Select both student and book.");
+    if (!studentId || !bookId || !accessCode) {
+      toast.error("All fields except expiry date are required.");
+      return;
+    }
 
     try {
-      const res = await fetch(`${API}/api/admin/student-books/assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          bookId: selectedBook.id,
+      const token = localStorage.getItem("bba_admin_token");
+
+      await axios.post(
+        `${API}/api/admin/student-books`,
+        {
+          studentId,
+          bookId,
           accessCode,
           providerLink,
           expiresAt: expiresAt || null,
-        }),
-      });
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message);
+      toast.success("Access code assigned successfully!");
 
-      toast.success("Access code assigned successfully!", {
-        duration: 2500,
-      });
-
-      setTimeout(() => router.push("/admin/assignments"), 1800);
+      // Reset form
+      setStudentId("");
+      setBookId("");
+      setAccessCode("");
+      setProviderLink("");
+      setExpiresAt("");
     } catch (err) {
-      toast.error(err.message);
+      console.error("Submit error:", err);
+      toast.error("Failed to assign access code.");
     }
   }
 
-  /* ------------------------------------------------------------------------ */
-  /* Render                                                                   */
-  /* ------------------------------------------------------------------------ */
-  return (
-    <main className="min-h-screen bg-gray-50 p-6 flex justify-center">
-      <Toaster position="top-center" />
+  /* --------------------------------------------------------------------- */
+  /* UI                                                                    */
+  /* --------------------------------------------------------------------- */
 
-      <div className="w-full max-w-4xl bg-white shadow-lg rounded-xl p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-indigo-700">
-            Assign Access Code
-          </h1>
-          <button
-            onClick={() => router.push("/admin/dashboard")}
-            className="px-4 py-2 rounded-md border hover:bg-gray-100"
+  if (loading)
+    return (
+      <div className="p-10 text-center text-gray-500 dark:text-gray-300">
+        Loading…
+      </div>
+    );
+
+  return (
+    <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+      <h1 className="text-2xl font-bold mb-6 text-indigo-600 dark:text-indigo-300">
+        Assign Access Code
+      </h1>
+
+      <form className="space-y-6" onSubmit={handleSubmit}>
+        {/* Student */}
+        <div>
+          <label className="block mb-1 text-gray-600 dark:text-gray-300">
+            Select Student
+          </label>
+          <select
+            value={studentId}
+            onChange={(e) => setStudentId(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2"
+            required
           >
-            ⬅ Back to Dashboard
-          </button>
+            <option value="">Choose Student</option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.fullName} ({s.email})
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Info */}
-        <p className="text-gray-600 text-sm mb-6">
-          Choose the student and book, then input the access code and provider
-          link sent by Mallory. Once saved, this book will appear in the
-          student’s “My Books” page immediately.
-        </p>
+        {/* Book */}
+        <div>
+          <label className="block mb-1 text-gray-600 dark:text-gray-300">
+            Select Book
+          </label>
+          <select
+            value={bookId}
+            onChange={(e) => setBookId(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2"
+            required
+          >
+            <option value="">Choose Book</option>
+            {books.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.title} — {b.isbn}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        {loading ? (
-          <div className="py-20 text-center text-gray-500">
-            Loading…
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Student Dropdown */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Select Student
-              </label>
-              <select
-                value={selectedStudent?.id || ""}
-                onChange={(e) =>
-                  setSelectedStudent(
-                    students.find((s) => s.id === e.target.value)
-                  )
-                }
-                required
-                className="w-full border rounded-lg p-3 bg-gray-50"
-              >
-                <option value="">Choose Student</option>
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.fullName} — {s.email}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {/* Access Code */}
+        <div>
+          <label className="block mb-1 text-gray-600 dark:text-gray-300">
+            Access Code
+          </label>
+          <input
+            type="text"
+            value={accessCode}
+            onChange={(e) => setAccessCode(e.target.value)}
+            placeholder="e.g. ENG-1234-2025"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2"
+            required
+          />
+        </div>
 
-            {/* Book Dropdown */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Select Book
-              </label>
-              <select
-                value={selectedBook?.id || ""}
-                onChange={(e) =>
-                  setSelectedBook(
-                    books.find((b) => b.id === e.target.value)
-                  )
-                }
-                required
-                className="w-full border rounded-lg p-3 bg-gray-50"
-              >
-                <option value="">Choose Book</option>
-                {books.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.title} — {b.isbn}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {/* Provider Link */}
+        <div>
+          <label className="block mb-1 text-gray-600 dark:text-gray-300">
+            Provider Link
+          </label>
+          <input
+            type="url"
+            value={providerLink}
+            onChange={(e) => setProviderLink(e.target.value)}
+            placeholder="https://www.cambridgego.org/…"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2"
+          />
+        </div>
 
-            {/* Access Code */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Access Code
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. ENG-1234-2025"
-                className="w-full border rounded-lg p-3"
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-              />
-            </div>
+        {/* Expiry Date */}
+        <div>
+          <label className="block mb-1 text-gray-600 dark:text-gray-300">
+            Expiry Date (optional)
+          </label>
+          <input
+            type="date"
+            value={expiresAt}
+            onChange={(e) => setExpiresAt(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2"
+          />
+        </div>
 
-            {/* Provider Link */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Provider Link (from Mallory)
-              </label>
-              <input
-                type="url"
-                required
-                placeholder="https://www.cambridgego.org/…"
-                className="w-full border rounded-lg p-3"
-                value={providerLink}
-                onChange={(e) => setProviderLink(e.target.value)}
-              />
-            </div>
-
-            {/* Expiry */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Expiry Date (optional)
-              </label>
-              <input
-                type="date"
-                className="w-full border rounded-lg p-3"
-                value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
-              />
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              className="w-full py-3 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700"
-            >
-              Assign Access Code
-            </button>
-          </form>
-        )}
-      </div>
-    </main>
+        <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-semibold">
+          Assign Access Code
+        </button>
+      </form>
+    </div>
   );
 }

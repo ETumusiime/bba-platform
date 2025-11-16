@@ -38,6 +38,15 @@ import adminStudentBookRoutes from "./routes/adminStudentBookRoutes.js";
 /* NEW — ADMIN DASHBOARD METRICS */
 import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 
+/* NEW — ADMIN PARENTS MANAGEMENT */
+import adminParentsRoutes from "./routes/adminParentsRoutes.js";
+
+/* NEW — ADMIN STUDENTS MANAGEMENT */
+import adminStudentsRoutes from "./routes/adminStudentsRoutes.js";
+
+/* ✅ NEW — ADMIN ORDERS MODULE */
+import adminOrdersRoutes from "./routes/adminOrdersRoutes.js";
+
 dotenv.config();
 const app = express();
 
@@ -88,6 +97,15 @@ app.use("/api/admin/dashboard", adminDashboardRoutes);
 
 /* NEW — ADMIN ASSIGN ACCESS CODES */
 app.use("/api/admin/student-books", adminStudentBookRoutes);
+
+/* NEW — ADMIN PARENTS MANAGEMENT */
+app.use("/api/admin/parents", adminParentsRoutes);
+
+/* NEW — ADMIN STUDENTS MANAGEMENT */
+app.use("/api/admin/students", adminStudentsRoutes);
+
+/* ✅ NEW — ADMIN ORDERS MANAGEMENT */
+app.use("/api/admin/orders", adminOrdersRoutes);
 
 /* Cart */
 app.use("/api/cart", cartRoutes);

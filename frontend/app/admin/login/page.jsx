@@ -23,10 +23,26 @@ export default function AdminLoginPage() {
         password,
       });
 
-      localStorage.setItem("adminToken", res.data.token);
+      const token = res.data.token;
+
+      /* ------------------------------------------------------------------ */
+      /* ⭐ 1. Save token in localStorage — used by all admin pages           */
+      /* ------------------------------------------------------------------ */
+      localStorage.setItem("bba_admin_token", token);
+
+      /* ------------------------------------------------------------------ */
+      /* ⭐ 2. Save token as a cookie — used by backend adminAuth middleware */
+      /* ------------------------------------------------------------------ */
+      document.cookie = `bba_admin_token=${token}; path=/; SameSite=Lax;`;
+
       toast.dismiss(toastId);
       toast.success("✅ Login successful!");
-      router.push("/admin/books-management");
+
+      /* ------------------------------------------------------------------ */
+      /* ⭐ 3. Redirect to dashboard                                         */
+      /* ------------------------------------------------------------------ */
+      router.replace("/admin/dashboard");
+
     } catch (err) {
       toast.dismiss(toastId);
       toast.error("❌ Invalid credentials");
@@ -35,6 +51,9 @@ export default function AdminLoginPage() {
     }
   };
 
+  /* ---------------------------------------------------------------------- */
+  /* RENDER                                                                 */
+  /* ---------------------------------------------------------------------- */
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
       <div className="bg-white shadow-xl rounded-xl p-10 w-full max-w-md border border-blue-100">
