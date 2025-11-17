@@ -13,11 +13,11 @@ export default function HomePage() {
       <section className="mt-28 bg-gradient-to-br from-indigo-50 via-white to-sky-50 py-20 px-6 text-center">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-4xl sm:text-5xl font-bold text-indigo-800 leading-tight mb-4">
-            Empowering Parents and Students for Homeschool Success
+            Empowering Families for Homeschool Success
           </h2>
           <p className="text-gray-600 text-lg mb-8">
-            Uganda’s first homeschool support platform — guiding families to
-            learn confidently, grow academically, and connect globally.
+            A homeschool support platform — guiding families to
+            learn confidently, grow wholly, and connect globally.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button
@@ -43,7 +43,7 @@ export default function HomePage() {
             Who We Are
           </h3>
           <p className="text-gray-600 text-lg leading-relaxed">
-            Bethel Bridge Academy (BBA) is Uganda’s first homeschool support
+            Bethel Bridge Academy (BBA) is a homeschool support
             platform, empowering families to educate confidently at home.
             Through partnerships, resources, and guidance, we provide a bridge
             between parents, students, tutors, and international learning
@@ -140,8 +140,7 @@ export default function HomePage() {
             Growing Beyond Borders 🌍
           </h3>
           <p className="text-gray-600 text-lg leading-relaxed">
-            While our journey begins in Uganda, BBA is built to support
-            homeschooling families worldwide — adapting to local education
+            BBA is built to support homeschooling families worldwide — adapting to local education
             systems while maintaining a global standard of excellence.
           </p>
         </div>

@@ -15,7 +15,7 @@ export default function ContactPage() {
           <p className="text-gray-700 mb-2">
             📧 Email: info@bethelbridgeacademy.com
           </p>
-          <p className="text-gray-700 mb-2">📞 Phone: +256 700 000000</p>
+          <p className="text-gray-700 mb-2">📞 Phone: +256 701 429122</p>
           <p className="text-gray-700">
             📍 Location: Kampala, Uganda (expanding globally)
           </p>

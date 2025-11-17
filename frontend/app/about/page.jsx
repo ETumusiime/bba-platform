@@ -10,7 +10,7 @@ export default function AboutPage() {
           About Bethel Bridge Academy
         </h1>
         <p className="text-lg text-gray-600 leading-relaxed">
-          Bethel Bridge Academy (BBA) is Uganda’s first homeschool support
+          Bethel Bridge Academy (BBA) is a homeschool support
           platform designed to empower parents and students through access to
           quality learning resources, mentorship, and technology. Our mission is
           to simplify homeschooling while connecting families to global
